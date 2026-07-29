@@ -1,0 +1,6 @@
+{
+  "name": "Personal Finance Tracker",
+  "description": "A mobile-first personal finance application for tracking income and expenses, monitoring balances, and managing categories.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

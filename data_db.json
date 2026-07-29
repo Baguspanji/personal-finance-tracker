@@ -1,0 +1,205 @@
+{
+  "users": [
+    {
+      "id": "usr_1",
+      "name": "Pengguna Utama",
+      "email": "user@finance.com",
+      "password_hash": "$2b$10$2tAGfQe8eAKhf23D74km2u8vJ.S2ko9BedexxIhKz9bGAn15q2D5S",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat_inc_1",
+      "name": "Gaji",
+      "type": "income",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_inc_2",
+      "name": "Bonus",
+      "type": "income",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_inc_3",
+      "name": "Freelance",
+      "type": "income",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_inc_4",
+      "name": "Investasi",
+      "type": "income",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_inc_5",
+      "name": "Lainnya",
+      "type": "income",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_exp_1",
+      "name": "Makanan",
+      "type": "expense",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_exp_2",
+      "name": "Transportasi",
+      "type": "expense",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_exp_3",
+      "name": "Belanja",
+      "type": "expense",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_exp_4",
+      "name": "Tagihan",
+      "type": "expense",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_exp_5",
+      "name": "Hiburan",
+      "type": "expense",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_exp_6",
+      "name": "Kesehatan",
+      "type": "expense",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_exp_7",
+      "name": "Pendidikan",
+      "type": "expense",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "cat_exp_8",
+      "name": "Lainnya",
+      "type": "expense",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    }
+  ],
+  "payment_methods": [
+    {
+      "id": "pm_1",
+      "name": "Tunai",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "pm_2",
+      "name": "Transfer",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "pm_3",
+      "name": "QRIS",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "pm_4",
+      "name": "E-Wallet",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "pm_5",
+      "name": "Debit",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx_1",
+      "category_id": "cat_inc_1",
+      "payment_method_id": "pm_2",
+      "transaction_type": "income",
+      "amount": 8500000,
+      "transaction_date": "2026-07-01",
+      "notes": "Gaji Bulanan",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "tx_2",
+      "category_id": "cat_exp_1",
+      "payment_method_id": "pm_3",
+      "transaction_type": "expense",
+      "amount": 45000,
+      "transaction_date": "2026-07-02",
+      "notes": "Makan siang Nasi Padang",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "tx_3",
+      "category_id": "cat_exp_2",
+      "payment_method_id": "pm_4",
+      "transaction_type": "expense",
+      "amount": 150000,
+      "transaction_date": "2026-07-03",
+      "notes": "Topup saldo e-toll & ojek online",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "tx_4",
+      "category_id": "cat_exp_4",
+      "payment_method_id": "pm_2",
+      "transaction_type": "expense",
+      "amount": 350000,
+      "transaction_date": "2026-07-05",
+      "notes": "Tagihan Listrik & WiFi",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "tx_5",
+      "category_id": "cat_inc_3",
+      "payment_method_id": "pm_2",
+      "transaction_type": "income",
+      "amount": 1200000,
+      "transaction_date": "2026-07-10",
+      "notes": "Project Web Design Freelance",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    },
+    {
+      "id": "tx_6",
+      "category_id": "cat_exp_3",
+      "payment_method_id": "pm_5",
+      "transaction_type": "expense",
+      "amount": 250000,
+      "transaction_date": "2026-07-28",
+      "notes": "Belanja Bulanan Minimarket",
+      "created_at": "2026-07-29T15:14:19.421Z",
+      "updated_at": "2026-07-29T15:14:19.421Z"
+    }
+  ]
+}
