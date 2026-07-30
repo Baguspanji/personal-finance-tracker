@@ -182,7 +182,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-col items-center gap-2 shrink-0">
                   <div
                     onClick={() => onEditTransaction(tx)}
                     className="text-right cursor-pointer mr-1"
@@ -197,20 +197,22 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   </div>
 
                   {/* Actions */}
-                  <button
-                    onClick={() => onEditTransaction(tx)}
-                    title="Edit"
-                    className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onDeleteTransaction(tx)}
-                    title="Hapus"
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => onEditTransaction(tx)}
+                      title="Edit"
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDeleteTransaction(tx)}
+                      title="Hapus"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );

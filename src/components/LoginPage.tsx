@@ -52,7 +52,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         </div>
 
         {/* Demo Account Banner */}
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 space-y-1.5">
+        {/* <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 space-y-1.5">
           <div className="flex items-center justify-between font-semibold text-emerald-900">
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Akun Seed Demo
@@ -69,7 +69,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             <div>Email: user@finance.com</div>
             <div>Pass: password123</div>
           </div>
-        </div>
+        </div> */}
 
         {/* Error Alert */}
         {error && (

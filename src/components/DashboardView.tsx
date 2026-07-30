@@ -43,7 +43,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const saldo = summary?.saldo || 0;
   const pemasukan = summary?.pemasukanBulanIni || 0;
   const pengeluaran = summary?.pengeluaranBulanIni || 0;
-  const recentTxs = summary?.recentTransactions || [];
+  const recentTxs = summary?.transaksiTerbaru || [];
 
   return (
     <div className="space-y-5 pb-24">

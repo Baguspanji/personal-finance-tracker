@@ -18,7 +18,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
       <div className="max-w-md mx-auto relative px-4 pb-3">
         {/* FAB Button */}
-        <div className="absolute right-6 -top-16 pointer-events-auto">
+        <div className="absolute right-6 -top-18 pointer-events-auto">
           <button
             onClick={onOpenAddTransaction}
             className="w-16 h-16 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-2xl border-4 border-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer focus:outline-none"

@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import { createServer as createViteServer } from 'vite';
-import { db } from './server/db.js';
+import * as mysqlDb from './server/mysql-db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'finance_tracker_jwt_secret_2026';
 
@@ -41,11 +41,14 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Initialize MySQL database connection
+  await mysqlDb.initMySQL();
+
   app.use(express.json());
   app.use(cookieParser());
 
   // --- Auth Endpoints ---
-  app.post('/api/login', (req: Request, res: Response) => {
+  app.post('/api/login', async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -53,7 +56,7 @@ async function startServer() {
       return;
     }
 
-    const user = db.getUserByEmail(email);
+    const user = await mysqlDb.getUserByEmail(email);
     if (!user) {
       res.status(401).json({ error: 'Email atau password salah.' });
       return;
@@ -92,12 +95,12 @@ async function startServer() {
     res.json({ message: 'Berhasil logout' });
   });
 
-  app.get('/api/me', requireAuth, (req: AuthRequest, res: Response) => {
+  app.get('/api/me', requireAuth, async (req: AuthRequest, res: Response) => {
     if (!req.userId) {
       res.status(401).json({ error: 'Pengguna tidak terautentikasi' });
       return;
     }
-    const user = db.getUserById(req.userId);
+    const user = await mysqlDb.getUserById(req.userId);
     if (!user) {
       res.status(404).json({ error: 'Pengguna tidak ditemukan' });
       return;
@@ -112,24 +115,24 @@ async function startServer() {
   });
 
   // --- Dashboard Endpoint ---
-  app.get('/api/dashboard', requireAuth, (req: AuthRequest, res: Response) => {
-    const summary = db.getDashboardSummary();
+  app.get('/api/dashboard', requireAuth, async (req: AuthRequest, res: Response) => {
+    const summary = await mysqlDb.getDashboardSummary();
     res.json(summary);
   });
 
   // --- Payment Methods Endpoint ---
-  app.get('/api/payment-methods', requireAuth, (req: AuthRequest, res: Response) => {
-    const paymentMethods = db.getPaymentMethods();
+  app.get('/api/payment-methods', requireAuth, async (req: AuthRequest, res: Response) => {
+    const paymentMethods = await mysqlDb.getPaymentMethods();
     res.json(paymentMethods);
   });
 
   // --- Category Endpoints ---
-  app.get('/api/categories', requireAuth, (req: AuthRequest, res: Response) => {
-    const categories = db.getCategories();
+  app.get('/api/categories', requireAuth, async (req: AuthRequest, res: Response) => {
+    const categories = await mysqlDb.getCategories();
     res.json(categories);
   });
 
-  app.post('/api/categories', requireAuth, (req: AuthRequest, res: Response) => {
+  app.post('/api/categories', requireAuth, async (req: AuthRequest, res: Response) => {
     const { name, type } = req.body;
 
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -142,11 +145,11 @@ async function startServer() {
       return;
     }
 
-    const newCat = db.createCategory(name, type);
+    const newCat = await mysqlDb.createCategory(name, type);
     res.status(201).json(newCat);
   });
 
-  app.put('/api/categories/:id', requireAuth, (req: AuthRequest, res: Response) => {
+  app.put('/api/categories/:id', requireAuth, async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { name, type } = req.body;
 
@@ -160,7 +163,7 @@ async function startServer() {
       return;
     }
 
-    const updated = db.updateCategory(id, name, type);
+    const updated = await mysqlDb.updateCategory(id, name, type);
     if (!updated) {
       res.status(404).json({ error: 'Kategori tidak ditemukan.' });
       return;
@@ -169,9 +172,9 @@ async function startServer() {
     res.json(updated);
   });
 
-  app.delete('/api/categories/:id', requireAuth, (req: AuthRequest, res: Response) => {
+  app.delete('/api/categories/:id', requireAuth, async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
-    const result = db.deleteCategory(id);
+    const result = await mysqlDb.deleteCategory(id);
 
     if (!result.success) {
       res.status(400).json({ error: result.error || 'Gagal menghapus kategori.' });
@@ -182,39 +185,23 @@ async function startServer() {
   });
 
   // --- Transaction Endpoints ---
-  app.get('/api/transactions', requireAuth, (req: AuthRequest, res: Response) => {
-    const rawTxs = db.getTransactions();
-    const categoriesMap = new Map(db.getCategories().map((c) => [c.id, c.name]));
-    const pmMap = new Map(db.getPaymentMethods().map((pm) => [pm.id, pm.name]));
-
-    const transactions = rawTxs.map((t) => ({
-      ...t,
-      category_name: categoriesMap.get(t.category_id) || 'Kategori Lain',
-      payment_method_name: pmMap.get(t.payment_method_id) || 'Tunai',
-    }));
-
+  app.get('/api/transactions', requireAuth, async (req: AuthRequest, res: Response) => {
+    const transactions = await mysqlDb.getTransactions();
     res.json(transactions);
   });
 
-  app.get('/api/transactions/:id', requireAuth, (req: AuthRequest, res: Response) => {
+  app.get('/api/transactions/:id', requireAuth, async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
-    const tx = db.getTransactionById(id);
+    const tx = await mysqlDb.getTransactionById(id);
     if (!tx) {
       res.status(404).json({ error: 'Transaksi tidak ditemukan.' });
       return;
     }
 
-    const cat = db.getCategoryById(tx.category_id);
-    const pm = db.getPaymentMethodById(tx.payment_method_id);
-
-    res.json({
-      ...tx,
-      category_name: cat ? cat.name : 'Kategori Lain',
-      payment_method_name: pm ? pm.name : 'Tunai',
-    });
+    res.json(tx);
   });
 
-  app.post('/api/transactions', requireAuth, (req: AuthRequest, res: Response) => {
+  app.post('/api/transactions', requireAuth, async (req: AuthRequest, res: Response) => {
     const { category_id, payment_method_id, transaction_type, amount, transaction_date, notes } = req.body;
 
     // Validation
@@ -242,12 +229,12 @@ async function startServer() {
     // Default payment method: Tunai if not provided
     let finalPaymentMethodId = payment_method_id;
     if (!finalPaymentMethodId) {
-      const pmList = db.getPaymentMethods();
+      const pmList = await mysqlDb.getPaymentMethods();
       const tunaiPm = pmList.find((p) => p.name.toLowerCase() === 'tunai');
       finalPaymentMethodId = tunaiPm ? tunaiPm.id : pmList[0]?.id || 'pm_1';
     }
 
-    const newTx = db.createTransaction({
+    const newTx = await mysqlDb.createTransaction({
       category_id,
       payment_method_id: finalPaymentMethodId,
       transaction_type,
@@ -256,17 +243,10 @@ async function startServer() {
       notes,
     });
 
-    const cat = db.getCategoryById(newTx.category_id);
-    const pm = db.getPaymentMethodById(newTx.payment_method_id);
-
-    res.status(201).json({
-      ...newTx,
-      category_name: cat ? cat.name : '',
-      payment_method_name: pm ? pm.name : '',
-    });
+    res.status(201).json(newTx);
   });
 
-  app.put('/api/transactions/:id', requireAuth, (req: AuthRequest, res: Response) => {
+  app.put('/api/transactions/:id', requireAuth, async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { category_id, payment_method_id, transaction_type, amount, transaction_date, notes } = req.body;
 
@@ -278,7 +258,7 @@ async function startServer() {
       }
     }
 
-    const updated = db.updateTransaction(id, {
+    const updated = await mysqlDb.updateTransaction(id, {
       category_id,
       payment_method_id,
       transaction_type,
@@ -292,19 +272,12 @@ async function startServer() {
       return;
     }
 
-    const cat = db.getCategoryById(updated.category_id);
-    const pm = db.getPaymentMethodById(updated.payment_method_id);
-
-    res.json({
-      ...updated,
-      category_name: cat ? cat.name : '',
-      payment_method_name: pm ? pm.name : '',
-    });
+    res.json(updated);
   });
 
-  app.delete('/api/transactions/:id', requireAuth, (req: AuthRequest, res: Response) => {
+  app.delete('/api/transactions/:id', requireAuth, async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
-    const success = db.deleteTransaction(id);
+    const success = await mysqlDb.deleteTransaction(id);
 
     if (!success) {
       res.status(404).json({ error: 'Transaksi tidak ditemukan.' });

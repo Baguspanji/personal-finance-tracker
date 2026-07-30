@@ -33,6 +33,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
   const [transactionDate, setTransactionDate] = useState(getTodayDateString());
   const [amount, setAmount] = useState<string>('');
+  const [displayAmount, setDisplayAmount] = useState<string>('');
   const [categoryId, setCategoryId] = useState<string>('');
   const [paymentMethodId, setPaymentMethodId] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
@@ -49,7 +50,9 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     if (initialTransaction) {
       setTransactionType(initialTransaction.transaction_type);
       setTransactionDate(initialTransaction.transaction_date || getTodayDateString());
-      setAmount(initialTransaction.amount.toString());
+      const val = initialTransaction.amount;
+      setAmount(val.toString());
+      setDisplayAmount(val > 0 ? new Intl.NumberFormat('id-ID').format(val) : '');
       setCategoryId(initialTransaction.category_id);
       setPaymentMethodId(initialTransaction.payment_method_id);
       setNotes(initialTransaction.notes || '');
@@ -58,6 +61,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       setTransactionType('expense');
       setTransactionDate(getTodayDateString());
       setAmount('');
+      setDisplayAmount('');
       setNotes('');
 
       // Find default payment method "Tunai"
@@ -71,6 +75,27 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     setError(null);
     setShowConfirmDelete(false);
   }, [initialTransaction, isOpen, categories, paymentMethods]);
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    const digitsOnly = rawValue.replace(/\D/g, '');
+    if (!digitsOnly) {
+      setAmount('');
+      setDisplayAmount('');
+      return;
+    }
+    const num = Number(digitsOnly);
+    const formatted = new Intl.NumberFormat('id-ID').format(num);
+    setAmount(digitsOnly);
+    setDisplayAmount(formatted);
+  };
+
+  const handleQuickAdd = (addValue: number) => {
+    const current = Number(amount) || 0;
+    const next = current + addValue;
+    setAmount(next.toString());
+    setDisplayAmount(new Intl.NumberFormat('id-ID').format(next));
+  };
 
   // When type changes, adjust selected category if needed
   const handleTypeChange = (newType: TransactionType) => {
@@ -199,19 +224,51 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
           </div>
 
           {/* Amount (Nominal) */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-              <DollarSign className="w-3.5 h-3.5 text-slate-400" /> Nominal (Rp) <span className="text-rose-500">*</span>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <DollarSign className="w-3.5 h-3.5 text-slate-400" /> Nominal (Rp) <span className="text-rose-500">*</span>
+              </span>
+              {amount && Number(amount) > 0 && (
+                <span className="text-[10px] text-slate-400 font-normal">
+                  Rp {displayAmount}
+                </span>
+              )}
             </label>
-            <input
-              type="number"
-              min="1"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0"
-              required
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800"
-            />
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 text-sm font-bold text-slate-400 select-none">
+                Rp
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={displayAmount}
+                onChange={handleAmountChange}
+                placeholder="0"
+                required
+                className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-lg font-bold focus:outline-none focus:ring-2 focus:ring-slate-900 text-slate-900 placeholder:text-slate-300"
+              />
+            </div>
+            {/* Quick Amount Presets */}
+            <div className="flex items-center gap-1.5 pt-1 overflow-x-auto pb-1">
+              <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Tambah:</span>
+              {[
+                { label: '+10rb', value: 10000 },
+                { label: '+50rb', value: 50000 },
+                { label: '+100rb', value: 100000 },
+                { label: '+500rb', value: 500000 },
+                { label: '+1jt', value: 1000000 },
+              ].map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => handleQuickAdd(preset.value)}
+                  className="text-[10px] font-medium px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Date & Payment Method Grid */}

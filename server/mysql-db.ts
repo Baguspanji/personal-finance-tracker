@@ -1,0 +1,489 @@
+import mysql from 'mysql2/promise';
+import { dbConfig } from '../database/config.js';
+import { db as jsonDb, DBUser, DBCategory, DBPaymentMethod, DBTransaction } from './db.js';
+
+let pool: mysql.Pool | null = null;
+let isMySqlAvailable = false;
+
+export async function initMySQL(): Promise<boolean> {
+  try {
+    pool = mysql.createPool(dbConfig);
+    const conn = await pool.getConnection();
+    conn.release();
+    isMySqlAvailable = true;
+    console.log(`✅ Connected to MySQL database "${dbConfig.database}" at ${dbConfig.host}:${dbConfig.port}`);
+    return true;
+  } catch (err) {
+    isMySqlAvailable = false;
+    console.warn('⚠️ MySQL database unavailable, using fallback JSON DB:', (err as Error).message);
+    return false;
+  }
+}
+
+export function getPool(): mysql.Pool {
+  if (!pool) {
+    pool = mysql.createPool(dbConfig);
+  }
+  return pool;
+}
+
+// Helper to execute MySQL query or fallback to JSON DB
+export async function getUserByEmail(email: string): Promise<DBUser | null> {
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(
+      'SELECT id, name, email, password_hash, created_at, updated_at FROM users WHERE email = ? LIMIT 1',
+      [email]
+    );
+    if (rows.length > 0) {
+      const r = rows[0];
+      return {
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        password_hash: r.password_hash,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString(),
+      };
+    }
+    return null;
+  } catch (err) {
+    console.warn('MySQL getUserByEmail error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.getUserByEmail(email) || null;
+  }
+}
+
+export async function getUserById(id: string): Promise<DBUser | null> {
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(
+      'SELECT id, name, email, password_hash, created_at, updated_at FROM users WHERE id = ? LIMIT 1',
+      [id]
+    );
+    if (rows.length > 0) {
+      const r = rows[0];
+      return {
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        password_hash: r.password_hash,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString(),
+      };
+    }
+    return null;
+  } catch (err) {
+    console.warn('MySQL getUserById error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.getUserById(id) || null;
+  }
+}
+
+export async function getPaymentMethods(): Promise<DBPaymentMethod[]> {
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(
+      'SELECT id, name, created_at, updated_at FROM payment_methods ORDER BY created_at ASC'
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      created_at: new Date(r.created_at).toISOString(),
+      updated_at: new Date(r.updated_at).toISOString(),
+    }));
+  } catch (err) {
+    console.warn('MySQL getPaymentMethods error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.getPaymentMethods();
+  }
+}
+
+export async function getPaymentMethodById(id: string): Promise<DBPaymentMethod | null> {
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(
+      'SELECT id, name, created_at, updated_at FROM payment_methods WHERE id = ? LIMIT 1',
+      [id]
+    );
+    if (rows.length > 0) {
+      const r = rows[0];
+      return {
+        id: r.id,
+        name: r.name,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString(),
+      };
+    }
+    return null;
+  } catch (err) {
+    return jsonDb.getPaymentMethodById(id) || null;
+  }
+}
+
+export async function getCategories(): Promise<DBCategory[]> {
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(
+      'SELECT id, name, type, created_at, updated_at FROM categories ORDER BY name ASC'
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      type: r.type,
+      created_at: new Date(r.created_at).toISOString(),
+      updated_at: new Date(r.updated_at).toISOString(),
+    }));
+  } catch (err) {
+    console.warn('MySQL getCategories error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.getCategories();
+  }
+}
+
+export async function getCategoryById(id: string): Promise<DBCategory | null> {
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(
+      'SELECT id, name, type, created_at, updated_at FROM categories WHERE id = ? LIMIT 1',
+      [id]
+    );
+    if (rows.length > 0) {
+      const r = rows[0];
+      return {
+        id: r.id,
+        name: r.name,
+        type: r.type,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString(),
+      };
+    }
+    return null;
+  } catch (err) {
+    return jsonDb.getCategoryById(id) || null;
+  }
+}
+
+export async function createCategory(name: string, type: 'income' | 'expense'): Promise<DBCategory> {
+  const id = `cat_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    const p = getPool();
+    await p.execute(
+      'INSERT INTO categories (id, name, type, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [id, name.trim(), type, now, now]
+    );
+    return {
+      id,
+      name: name.trim(),
+      type,
+      created_at: new Date(now).toISOString(),
+      updated_at: new Date(now).toISOString(),
+    };
+  } catch (err) {
+    console.warn('MySQL createCategory error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.createCategory(name, type);
+  }
+}
+
+export async function updateCategory(id: string, name: string, type: 'income' | 'expense'): Promise<DBCategory | null> {
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    const p = getPool();
+    const [result] = await p.execute<mysql.ResultSetHeader>(
+      'UPDATE categories SET name = ?, type = ?, updated_at = ? WHERE id = ?',
+      [name.trim(), type, now, id]
+    );
+    if (result.affectedRows === 0) return null;
+    return getCategoryById(id);
+  } catch (err) {
+    console.warn('MySQL updateCategory error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.updateCategory(id, name, type);
+  }
+}
+
+export async function deleteCategory(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const p = getPool();
+    // Check if used in transactions
+    const [txRows] = await p.execute<mysql.RowDataPacket[]>(
+      'SELECT COUNT(*) as cnt FROM transactions WHERE category_id = ?',
+      [id]
+    );
+    if (txRows[0].cnt > 0) {
+      return {
+        success: false,
+        error: 'Kategori tidak dapat dihapus karena masih digunakan dalam transaksi.',
+      };
+    }
+
+    const [result] = await p.execute<mysql.ResultSetHeader>(
+      'DELETE FROM categories WHERE id = ?',
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return { success: false, error: 'Kategori tidak ditemukan.' };
+    }
+    return { success: true };
+  } catch (err) {
+    console.warn('MySQL deleteCategory error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.deleteCategory(id);
+  }
+}
+
+export interface TransactionWithDetails extends DBTransaction {
+  category_name: string;
+  payment_method_name: string;
+}
+
+export async function getTransactions(): Promise<TransactionWithDetails[]> {
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(`
+      SELECT
+        t.id,
+        t.category_id,
+        t.payment_method_id,
+        t.transaction_type,
+        CAST(t.amount AS DOUBLE) as amount,
+        DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
+        t.notes,
+        t.created_at,
+        t.updated_at,
+        COALESCE(c.name, 'Kategori Lain') as category_name,
+        COALESCE(pm.name, 'Tunai') as payment_method_name
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN payment_methods pm ON t.payment_method_id = pm.id
+      ORDER BY t.transaction_date DESC, t.created_at DESC
+    `);
+
+    return rows.map((r) => ({
+      id: r.id,
+      category_id: r.category_id,
+      payment_method_id: r.payment_method_id,
+      transaction_type: r.transaction_type,
+      amount: Number(r.amount),
+      transaction_date: r.transaction_date,
+      notes: r.notes || '',
+      created_at: new Date(r.created_at).toISOString(),
+      updated_at: new Date(r.updated_at).toISOString(),
+      category_name: r.category_name,
+      payment_method_name: r.payment_method_name,
+    }));
+  } catch (err) {
+    console.warn('MySQL getTransactions error, falling back to JSON DB:', (err as Error).message);
+    const raw = jsonDb.getTransactions();
+    const categoriesMap = new Map(jsonDb.getCategories().map((c) => [c.id, c.name]));
+    const pmMap = new Map(jsonDb.getPaymentMethods().map((pm) => [pm.id, pm.name]));
+    return raw.map((t) => ({
+      ...t,
+      category_name: categoriesMap.get(t.category_id) || 'Kategori Lain',
+      payment_method_name: pmMap.get(t.payment_method_id) || 'Tunai',
+    }));
+  }
+}
+
+export async function getTransactionById(id: string): Promise<TransactionWithDetails | null> {
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(`
+      SELECT
+        t.id,
+        t.category_id,
+        t.payment_method_id,
+        t.transaction_type,
+        CAST(t.amount AS DOUBLE) as amount,
+        DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
+        t.notes,
+        t.created_at,
+        t.updated_at,
+        COALESCE(c.name, 'Kategori Lain') as category_name,
+        COALESCE(pm.name, 'Tunai') as payment_method_name
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN payment_methods pm ON t.payment_method_id = pm.id
+      WHERE t.id = ?
+      LIMIT 1
+    `, [id]);
+
+    if (rows.length > 0) {
+      const r = rows[0];
+      return {
+        id: r.id,
+        category_id: r.category_id,
+        payment_method_id: r.payment_method_id,
+        transaction_type: r.transaction_type,
+        amount: Number(r.amount),
+        transaction_date: r.transaction_date,
+        notes: r.notes || '',
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString(),
+        category_name: r.category_name,
+        payment_method_name: r.payment_method_name,
+      };
+    }
+    return null;
+  } catch (err) {
+    console.warn('MySQL getTransactionById error, falling back to JSON DB:', (err as Error).message);
+    const tx = jsonDb.getTransactionById(id);
+    if (!tx) return null;
+    const cat = jsonDb.getCategoryById(tx.category_id);
+    const pm = jsonDb.getPaymentMethodById(tx.payment_method_id);
+    return {
+      ...tx,
+      category_name: cat ? cat.name : 'Kategori Lain',
+      payment_method_name: pm ? pm.name : 'Tunai',
+    };
+  }
+}
+
+export async function createTransaction(data: {
+  category_id: string;
+  payment_method_id: string;
+  transaction_type: 'income' | 'expense';
+  amount: number;
+  transaction_date: string;
+  notes?: string;
+}): Promise<TransactionWithDetails> {
+  const id = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    const p = getPool();
+    await p.execute(`
+      INSERT INTO transactions (id, category_id, payment_method_id, transaction_type, amount, transaction_date, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      id,
+      data.category_id,
+      data.payment_method_id,
+      data.transaction_type,
+      data.amount,
+      data.transaction_date,
+      data.notes || '',
+      now,
+      now,
+    ]);
+
+    const created = await getTransactionById(id);
+    if (created) return created;
+    throw new Error('Created transaction could not be retrieved.');
+  } catch (err) {
+    console.warn('MySQL createTransaction error, falling back to JSON DB:', (err as Error).message);
+    const newTx = jsonDb.createTransaction(data);
+    const cat = jsonDb.getCategoryById(newTx.category_id);
+    const pm = jsonDb.getPaymentMethodById(newTx.payment_method_id);
+    return {
+      ...newTx,
+      category_name: cat ? cat.name : '',
+      payment_method_name: pm ? pm.name : '',
+    };
+  }
+}
+
+export async function updateTransaction(
+  id: string,
+  data: Partial<{
+    category_id: string;
+    payment_method_id: string;
+    transaction_type: 'income' | 'expense';
+    amount: number;
+    transaction_date: string;
+    notes?: string;
+  }>
+): Promise<TransactionWithDetails | null> {
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    const p = getPool();
+    const existing = await getTransactionById(id);
+    if (!existing) return null;
+
+    const updatedCategoryId = data.category_id !== undefined ? data.category_id : existing.category_id;
+    const updatedPaymentMethodId = data.payment_method_id !== undefined ? data.payment_method_id : existing.payment_method_id;
+    const updatedType = data.transaction_type !== undefined ? data.transaction_type : existing.transaction_type;
+    const updatedAmount = data.amount !== undefined ? data.amount : existing.amount;
+    const updatedDate = data.transaction_date !== undefined ? data.transaction_date : existing.transaction_date;
+    const updatedNotes = data.notes !== undefined ? data.notes : existing.notes;
+
+    await p.execute(`
+      UPDATE transactions
+      SET category_id = ?, payment_method_id = ?, transaction_type = ?, amount = ?, transaction_date = ?, notes = ?, updated_at = ?
+      WHERE id = ?
+    `, [
+      updatedCategoryId,
+      updatedPaymentMethodId,
+      updatedType,
+      updatedAmount,
+      updatedDate,
+      updatedNotes,
+      now,
+      id,
+    ]);
+
+    return getTransactionById(id);
+  } catch (err) {
+    console.warn('MySQL updateTransaction error, falling back to JSON DB:', (err as Error).message);
+    const updated = jsonDb.updateTransaction(id, data);
+    if (!updated) return null;
+    const cat = jsonDb.getCategoryById(updated.category_id);
+    const pm = jsonDb.getPaymentMethodById(updated.payment_method_id);
+    return {
+      ...updated,
+      category_name: cat ? cat.name : '',
+      payment_method_name: pm ? pm.name : '',
+    };
+  }
+}
+
+export async function deleteTransaction(id: string): Promise<boolean> {
+  try {
+    const p = getPool();
+    const [result] = await p.execute<mysql.ResultSetHeader>(
+      'DELETE FROM transactions WHERE id = ?',
+      [id]
+    );
+    return result.affectedRows > 0;
+  } catch (err) {
+    console.warn('MySQL deleteTransaction error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.deleteTransaction(id);
+  }
+}
+
+export async function getDashboardSummary() {
+  try {
+    const p = getPool();
+
+    // 1. Total Saldo
+    const [saldoRows] = await p.execute<mysql.RowDataPacket[]>(`
+      SELECT
+        COALESCE(SUM(CASE WHEN transaction_type = 'income' THEN amount ELSE -amount END), 0) as saldo
+      FROM transactions
+    `);
+    const saldo = Number(saldoRows[0]?.saldo || 0);
+
+    // 2. Income & Expense for current month
+    const [monthlyRows] = await p.execute<mysql.RowDataPacket[]>(`
+      SELECT
+        COALESCE(SUM(CASE WHEN transaction_type = 'income' THEN amount ELSE 0 END), 0) as pemasukan,
+        COALESCE(SUM(CASE WHEN transaction_type = 'expense' THEN amount ELSE 0 END), 0) as pengeluaran
+      FROM transactions
+      WHERE MONTH(transaction_date) = MONTH(CURRENT_DATE())
+        AND YEAR(transaction_date) = YEAR(CURRENT_DATE())
+    `);
+    const pemasukanBulanIni = Number(monthlyRows[0]?.pemasukan || 0);
+    const pengeluaranBulanIni = Number(monthlyRows[0]?.pengeluaran || 0);
+
+    // 3. Recent 5 transactions
+    const transaksiTerbaru = await getTransactions();
+
+    return {
+      saldo,
+      pemasukanBulanIni,
+      pengeluaranBulanIni,
+      transaksiTerbaru: transaksiTerbaru.slice(0, 5),
+    };
+  } catch (err) {
+    console.warn('MySQL getDashboardSummary error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.getDashboardSummary();
+  }
+}
