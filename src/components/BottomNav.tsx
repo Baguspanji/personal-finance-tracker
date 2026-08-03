@@ -1,7 +1,7 @@
 import React from 'react';
-import { LayoutDashboard, ArrowLeftRight, Tag, Plus } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, Tag, Plus, PieChart } from 'lucide-react';
 
-export type TabType = 'dashboard' | 'transactions' | 'categories';
+export type TabType = 'dashboard' | 'transactions' | 'categories' | 'reports';
 
 interface BottomNavProps {
   activeTab: TabType;
@@ -65,6 +65,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           >
             <Tag className="w-4 h-4" />
             <span className="text-[10px]">Kategori</span>
+          </button>
+
+          <button
+            onClick={() => onChangeTab('reports')}
+            className={`flex flex-col items-center gap-0.5 py-1.5 px-4 rounded-full transition-all ${
+              activeTab === 'reports'
+                ? 'text-slate-900 font-semibold bg-slate-100'
+                : 'text-slate-400 hover:text-slate-600 font-normal'
+            }`}
+          >
+            <PieChart className="w-4 h-4" />
+            <span className="text-[10px]">Laporan</span>
           </button>
         </nav>
       </div>

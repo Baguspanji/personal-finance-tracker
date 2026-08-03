@@ -6,6 +6,7 @@ import { BottomNav, TabType } from './components/BottomNav';
 import { DashboardView } from './components/DashboardView';
 import { TransactionsView } from './components/TransactionsView';
 import { CategoriesView } from './components/CategoriesView';
+import { ReportsView } from './components/ReportsView';
 import { LoginPage } from './components/LoginPage';
 import { TransactionFormModal } from './components/TransactionFormModal';
 
@@ -172,6 +173,13 @@ export default function App() {
               categories={categories}
               loading={dataLoading}
               onRefreshCategories={loadAppData}
+            />
+          )}
+
+          {activeTab === 'reports' && (
+            <ReportsView
+              transactions={transactions}
+              loading={dataLoading}
             />
           )}
         </main>
