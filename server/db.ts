@@ -35,6 +35,7 @@ export interface DBTransaction {
   transaction_type: TransactionType;
   amount: number;
   transaction_date: string; // YYYY-MM-DD format or ISO string
+  is_opening?: boolean;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -303,6 +304,18 @@ export class JsonDB {
     return this.data.transactions.find((t) => t.id === id);
   }
 
+  getTransactionsByMonth(yearMonth: string): DBTransaction[] {
+    return this.getTransactions().filter((t) => t.transaction_date.startsWith(yearMonth));
+  }
+
+  deleteTransaction(id: string): boolean {
+    const initialLen = this.data.transactions.length;
+    this.data.transactions = this.data.transactions.filter((t) => t.id !== id);
+    if (this.data.transactions.length === initialLen) return false;
+    this.save();
+    return true;
+  }
+
   createTransaction(payload: {
     category_id: string;
     payment_method_id: string;
@@ -310,6 +323,7 @@ export class JsonDB {
     amount: number;
     transaction_date: string;
     notes?: string;
+    is_opening?: boolean;
   }): DBTransaction {
     const now = nowISO();
     const newTx: DBTransaction = {
@@ -319,6 +333,7 @@ export class JsonDB {
       transaction_type: payload.transaction_type,
       amount: Number(payload.amount),
       transaction_date: payload.transaction_date || getTodayFormatted(),
+      is_opening: payload.is_opening === true,
       notes: payload.notes ? payload.notes.trim() : '',
       created_at: now,
       updated_at: now,
@@ -337,6 +352,7 @@ export class JsonDB {
       amount?: number;
       transaction_date?: string;
       notes?: string;
+      is_opening?: boolean;
     }
   ): DBTransaction | null {
     const idx = this.data.transactions.findIndex((t) => t.id === id);
@@ -350,6 +366,7 @@ export class JsonDB {
       transaction_type: payload.transaction_type ?? existing.transaction_type,
       amount: payload.amount !== undefined ? Number(payload.amount) : existing.amount,
       transaction_date: payload.transaction_date ?? existing.transaction_date,
+      is_opening: payload.is_opening !== undefined ? payload.is_opening : existing.is_opening,
       notes: payload.notes !== undefined ? payload.notes.trim() : existing.notes,
       updated_at: nowISO(),
     };
@@ -357,12 +374,18 @@ export class JsonDB {
     return this.data.transactions[idx];
   }
 
-  deleteTransaction(id: string): boolean {
-    const initialLen = this.data.transactions.length;
-    this.data.transactions = this.data.transactions.filter((t) => t.id !== id);
-    if (this.data.transactions.length === initialLen) return false;
-    this.save();
-    return true;
+  deleteTransactionsByOpeningMonth(monthStart: string): number {
+    const before = this.data.transactions.length;
+    this.data.transactions = this.data.transactions.filter(
+      (t) => !(t.is_opening && t.transaction_date === monthStart)
+    );
+    const removed = before - this.data.transactions.length;
+    if (removed > 0) this.save();
+    return removed;
+  }
+
+  getOpeningTransactionForMonth(monthStart: string): DBTransaction | undefined {
+    return this.data.transactions.find((t) => t.is_opening && t.transaction_date === monthStart);
   }
 
   // Dashboard Summary calculation

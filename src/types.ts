@@ -34,6 +34,8 @@ export interface Transaction {
   created_at: string;
   updated_at: string;
   
+  is_opening?: boolean;
+
   // Joined fields for convenience in UI
   category_name?: string;
   payment_method_name?: string;

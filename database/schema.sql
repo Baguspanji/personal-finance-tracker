@@ -58,6 +58,7 @@ CREATE TABLE `transactions` (
   `transaction_type` ENUM('income', 'expense') NOT NULL,
   `amount` DECIMAL(15, 2) NOT NULL,
   `transaction_date` DATE NOT NULL,
+  `is_opening` TINYINT(1) NOT NULL DEFAULT 0,
   `notes` TEXT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

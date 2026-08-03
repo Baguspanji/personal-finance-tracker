@@ -245,6 +245,7 @@ export async function getTransactions(): Promise<TransactionWithDetails[]> {
         t.transaction_type,
         CAST(t.amount AS DOUBLE) as amount,
         DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
+        t.is_opening,
         t.notes,
         t.created_at,
         t.updated_at,
@@ -263,6 +264,7 @@ export async function getTransactions(): Promise<TransactionWithDetails[]> {
       transaction_type: r.transaction_type,
       amount: Number(r.amount),
       transaction_date: r.transaction_date,
+      is_opening: Boolean(r.is_opening),
       notes: r.notes || '',
       created_at: new Date(r.created_at).toISOString(),
       updated_at: new Date(r.updated_at).toISOString(),
@@ -293,6 +295,7 @@ export async function getTransactionById(id: string): Promise<TransactionWithDet
         t.transaction_type,
         CAST(t.amount AS DOUBLE) as amount,
         DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
+        t.is_opening,
         t.notes,
         t.created_at,
         t.updated_at,
@@ -314,6 +317,7 @@ export async function getTransactionById(id: string): Promise<TransactionWithDet
         transaction_type: r.transaction_type,
         amount: Number(r.amount),
         transaction_date: r.transaction_date,
+        is_opening: Boolean(r.is_opening),
         notes: r.notes || '',
         created_at: new Date(r.created_at).toISOString(),
         updated_at: new Date(r.updated_at).toISOString(),
@@ -343,6 +347,7 @@ export async function createTransaction(data: {
   amount: number;
   transaction_date: string;
   notes?: string;
+  is_opening?: boolean;
 }): Promise<TransactionWithDetails> {
   const id = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -350,8 +355,8 @@ export async function createTransaction(data: {
   try {
     const p = getPool();
     await p.execute(`
-      INSERT INTO transactions (id, category_id, payment_method_id, transaction_type, amount, transaction_date, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (id, category_id, payment_method_id, transaction_type, amount, transaction_date, is_opening, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       id,
       data.category_id,
@@ -359,6 +364,7 @@ export async function createTransaction(data: {
       data.transaction_type,
       data.amount,
       data.transaction_date,
+      data.is_opening ? 1 : 0,
       data.notes || '',
       now,
       now,
@@ -389,6 +395,7 @@ export async function updateTransaction(
     amount: number;
     transaction_date: string;
     notes?: string;
+    is_opening?: boolean;
   }>
 ): Promise<TransactionWithDetails | null> {
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -404,10 +411,11 @@ export async function updateTransaction(
     const updatedAmount = data.amount !== undefined ? data.amount : existing.amount;
     const updatedDate = data.transaction_date !== undefined ? data.transaction_date : existing.transaction_date;
     const updatedNotes = data.notes !== undefined ? data.notes : existing.notes;
+    const updatedIsOpening = data.is_opening !== undefined ? (data.is_opening ? 1 : 0) : (existing.is_opening ? 1 : 0);
 
     await p.execute(`
       UPDATE transactions
-      SET category_id = ?, payment_method_id = ?, transaction_type = ?, amount = ?, transaction_date = ?, notes = ?, updated_at = ?
+      SET category_id = ?, payment_method_id = ?, transaction_type = ?, amount = ?, transaction_date = ?, is_opening = ?, notes = ?, updated_at = ?
       WHERE id = ?
     `, [
       updatedCategoryId,
@@ -415,6 +423,7 @@ export async function updateTransaction(
       updatedType,
       updatedAmount,
       updatedDate,
+      updatedIsOpening,
       updatedNotes,
       now,
       id,
@@ -486,4 +495,106 @@ export async function getDashboardSummary() {
     console.warn('MySQL getDashboardSummary error, falling back to JSON DB:', (err as Error).message);
     return jsonDb.getDashboardSummary();
   }
+}
+
+export async function getOrCreateOpeningCategory(): Promise<DBCategory> {
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(
+      `SELECT id, name, type, created_at, updated_at FROM categories WHERE name = ? LIMIT 1`,
+      ['Saldo Awal']
+    );
+    if (rows.length > 0) {
+      const r = rows[0];
+      return {
+        id: r.id,
+        name: r.name,
+        type: r.type,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString(),
+      };
+    }
+    return createCategory('Saldo Awal', 'income');
+  } catch (err) {
+    console.warn('MySQL getOrCreateOpeningCategory error, falling back to JSON DB:', (err as Error).message);
+    const cat = jsonDb.getCategories().find((c) => c.name === 'Saldo Awal' && c.type === 'income');
+    if (cat) return cat;
+    return jsonDb.createCategory('Saldo Awal', 'income');
+  }
+}
+
+export async function getMonthlyNetBalance(yearMonth: string): Promise<number> {
+  const [year, month] = yearMonth.split('-');
+  if (!year || !month) throw new Error('Format bulan harus YYYY-MM.');
+
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(`
+      SELECT
+        COALESCE(SUM(CASE WHEN transaction_type = 'income' THEN amount ELSE -amount END), 0) as net
+      FROM transactions
+      WHERE YEAR(transaction_date) = ? AND MONTH(transaction_date) = ?
+    `, [year, month]);
+    return Number(rows[0]?.net || 0);
+  } catch (err) {
+    console.warn('MySQL getMonthlyNetBalance error, falling back to JSON DB:', (err as Error).message);
+    const txs = jsonDb.getTransactionsByMonth(yearMonth);
+    return txs.reduce((sum, t) => sum + (t.transaction_type === 'income' ? t.amount : -t.amount), 0);
+  }
+}
+
+function firstDayOfNextMonth(yearMonth: string): string {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const next = new Date(year, month, 1);
+  const y = next.getFullYear();
+  const m = String(next.getMonth() + 1).padStart(2, '0');
+  const d = String(next.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export async function deleteOpeningTransactionsForMonth(monthStart: string): Promise<number> {
+  try {
+    const p = getPool();
+    const [result] = await p.execute<mysql.ResultSetHeader>(
+      'DELETE FROM transactions WHERE is_opening = 1 AND transaction_date = ?',
+      [monthStart]
+    );
+    return result.affectedRows;
+  } catch (err) {
+    console.warn('MySQL deleteOpeningTransactionsForMonth error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.deleteTransactionsByOpeningMonth(monthStart);
+  }
+}
+
+export async function createOpeningTransaction(sourceMonth: string): Promise<{
+  netBalance: number;
+  targetDate: string;
+  openingTransaction: TransactionWithDetails;
+  removedCount: number;
+}> {
+  if (!/^\d{4}-\d{2}$/.test(sourceMonth)) {
+    throw new Error('Bulan sumber harus format YYYY-MM.');
+  }
+
+  const netBalance = await getMonthlyNetBalance(sourceMonth);
+  const targetDate = firstDayOfNextMonth(sourceMonth);
+  const category = await getOrCreateOpeningCategory();
+
+  // Ensure a default payment method exists
+  const paymentMethods = await getPaymentMethods();
+  const paymentMethodId = paymentMethods[0]?.id || 'pm_1';
+
+  const removedCount = await deleteOpeningTransactionsForMonth(targetDate);
+
+  const openingTransaction = await createTransaction({
+    category_id: category.id,
+    payment_method_id: paymentMethodId,
+    transaction_type: netBalance >= 0 ? 'income' : 'expense',
+    amount: Math.abs(netBalance),
+    transaction_date: targetDate,
+    notes: `Saldo awal dari ${sourceMonth}`,
+    is_opening: true,
+  });
+
+  return { netBalance, targetDate, openingTransaction, removedCount };
 }

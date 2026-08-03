@@ -145,10 +145,12 @@ export default function App() {
           {activeTab === 'dashboard' && (
             <DashboardView
               summary={summary}
+              transactions={transactions}
               loading={dataLoading}
               onEditTransaction={handleOpenEditTransaction}
               onNavigateTransactions={() => setActiveTab('transactions')}
               onOpenAddTransaction={handleOpenAddTransaction}
+              onRefresh={loadAppData}
             />
           )}
 

@@ -72,6 +72,19 @@ export const api = {
     return fetchApi<DashboardSummary>('/api/dashboard');
   },
 
+  createOpeningTransaction: async (sourceMonth: string): Promise<{
+    success: boolean;
+    netBalance: number;
+    targetDate: string;
+    openingTransaction: Transaction;
+    removedCount: number;
+  }> => {
+    return fetchApi('/api/opening-transactions', {
+      method: 'POST',
+      body: JSON.stringify({ sourceMonth }),
+    });
+  },
+
   // Payment Methods
   getPaymentMethods: async (): Promise<PaymentMethod[]> => {
     return fetchApi<PaymentMethod[]>('/api/payment-methods');

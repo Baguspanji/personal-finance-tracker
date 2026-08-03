@@ -120,6 +120,22 @@ async function startServer() {
     res.json(summary);
   });
 
+  // --- Opening Transaction Endpoint ---
+  app.post('/api/opening-transactions', requireAuth, async (req: AuthRequest, res: Response) => {
+    const { sourceMonth } = req.body;
+    if (!sourceMonth || typeof sourceMonth !== 'string') {
+      res.status(400).json({ error: 'Bulan sumber wajib diisi (YYYY-MM).' });
+      return;
+    }
+    try {
+      const result = await mysqlDb.createOpeningTransaction(sourceMonth);
+      res.status(201).json({ success: true, ...result });
+    } catch (err) {
+      console.error('Failed creating opening transaction:', err);
+      res.status(500).json({ error: (err as Error).message || 'Gagal membuat transaksi awal.' });
+    }
+  });
+
   // --- Payment Methods Endpoint ---
   app.get('/api/payment-methods', requireAuth, async (req: AuthRequest, res: Response) => {
     const paymentMethods = await mysqlDb.getPaymentMethods();
