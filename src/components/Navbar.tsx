@@ -9,8 +9,8 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
-      <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+    <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs lg:hidden">
+      <div className="max-w-md md:max-w-3xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-xs">

@@ -1,4 +1,4 @@
-import { AuthResponse, Category, DashboardSummary, PaymentMethod, Transaction, User } from './types';
+import { AuthResponse, Budget, Category, DashboardSummary, PaymentMethod, Transaction, User } from './types';
 
 const TOKEN_KEY = 'finance_tracker_token';
 
@@ -88,6 +88,44 @@ export const api = {
   // Payment Methods
   getPaymentMethods: async (): Promise<PaymentMethod[]> => {
     return fetchApi<PaymentMethod[]>('/api/payment-methods');
+  },
+
+  createPaymentMethod: async (name: string): Promise<PaymentMethod> => {
+    return fetchApi<PaymentMethod>('/api/payment-methods', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  updatePaymentMethod: async (id: string, name: string): Promise<PaymentMethod> => {
+    return fetchApi<PaymentMethod>(`/api/payment-methods/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  deletePaymentMethod: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return fetchApi<{ success: boolean; message: string }>(`/api/payment-methods/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Budgets (monthly limit per expense category)
+  getBudgets: async (): Promise<Budget[]> => {
+    return fetchApi<Budget[]>('/api/budgets');
+  },
+
+  setBudget: async (categoryId: string, amount: number): Promise<Budget> => {
+    return fetchApi<Budget>(`/api/budgets/${categoryId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ amount }),
+    });
+  },
+
+  deleteBudget: async (categoryId: string): Promise<{ success: boolean; message: string }> => {
+    return fetchApi<{ success: boolean; message: string }>(`/api/budgets/${categoryId}`, {
+      method: 'DELETE',
+    });
   },
 
   // Categories

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Trash2, Calendar, DollarSign, Tag, CreditCard, FileText, AlertCircle } from 'lucide-react';
 import { Category, PaymentMethod, Transaction, TransactionType } from '../types';
 import { getTodayDateString } from '../utils';
+import { DateField } from './DateFields';
 
 interface TransactionFormModalProps {
   isOpen: boolean;
@@ -173,7 +174,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md sm:max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="font-bold text-slate-800 text-base">
@@ -253,11 +254,13 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             <div className="flex items-center gap-1.5 pt-1 overflow-x-auto pb-1">
               <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Tambah:</span>
               {[
+                { label: '+500', value: 500 },
+                { label: '+1rb', value: 1000 },
+                { label: '+2rb', value: 2000 },
+                { label: '+5rb', value: 5000 },
                 { label: '+10rb', value: 10000 },
                 { label: '+50rb', value: 50000 },
                 { label: '+100rb', value: 100000 },
-                { label: '+500rb', value: 500000 },
-                { label: '+1jt', value: 1000000 },
               ].map((preset) => (
                 <button
                   key={preset.label}
@@ -278,12 +281,11 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
               <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" /> Tanggal <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="date"
+              <DateField
                 value={transactionDate}
-                onChange={(e) => setTransactionDate(e.target.value)}
-                required
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800"
+                onChange={setTransactionDate}
+                usePortal
+                placeholder="Pilih tanggal"
               />
             </div>
 

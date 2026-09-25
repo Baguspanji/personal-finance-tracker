@@ -15,8 +15,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onOpenAddTransaction,
 }) => {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
-      <div className="max-w-md mx-auto relative px-4 pb-3">
+    <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none lg:hidden">
+      <div className="max-w-md md:max-w-3xl mx-auto relative px-4 pb-3">
         {/* FAB Button */}
         <div className="absolute right-6 -top-18 pointer-events-auto">
           <button

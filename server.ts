@@ -142,6 +142,90 @@ async function startServer() {
     res.json(paymentMethods);
   });
 
+  app.post('/api/payment-methods', requireAuth, async (req: AuthRequest, res: Response) => {
+    const { name } = req.body;
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ error: 'Nama metode pembayaran wajib diisi.' });
+      return;
+    }
+
+    try {
+      const created = await mysqlDb.createPaymentMethod(name);
+      res.status(201).json(created);
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message || 'Gagal menambah metode pembayaran.' });
+    }
+  });
+
+  app.put('/api/payment-methods/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ error: 'Nama metode pembayaran wajib diisi.' });
+      return;
+    }
+
+    try {
+      const updated = await mysqlDb.updatePaymentMethod(id, name);
+      if (!updated) {
+        res.status(404).json({ error: 'Metode pembayaran tidak ditemukan.' });
+        return;
+      }
+      res.json(updated);
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message || 'Gagal memperbarui metode pembayaran.' });
+    }
+  });
+
+  app.delete('/api/payment-methods/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const result = await mysqlDb.deletePaymentMethod(id);
+
+    if (!result.success) {
+      res.status(400).json({ error: result.error || 'Gagal menghapus metode pembayaran.' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Metode pembayaran berhasil dihapus.' });
+  });
+
+  // --- Budget Endpoints (monthly limit per expense category) ---
+  app.get('/api/budgets', requireAuth, async (req: AuthRequest, res: Response) => {
+    const budgets = await mysqlDb.getBudgets();
+    res.json(budgets);
+  });
+
+  app.put('/api/budgets/:categoryId', requireAuth, async (req: AuthRequest, res: Response) => {
+    const { categoryId } = req.params;
+    const numAmount = Number(req.body.amount);
+
+    if (isNaN(numAmount) || numAmount <= 0) {
+      res.status(400).json({ error: 'Nominal budget wajib diisi dan harus lebih besar dari 0.' });
+      return;
+    }
+
+    try {
+      const saved = await mysqlDb.setBudget(categoryId, numAmount);
+      res.json(saved);
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message || 'Gagal menyimpan budget.' });
+    }
+  });
+
+  app.delete('/api/budgets/:categoryId', requireAuth, async (req: AuthRequest, res: Response) => {
+    const { categoryId } = req.params;
+    const success = await mysqlDb.deleteBudget(categoryId);
+
+    if (!success) {
+      res.status(404).json({ error: 'Budget tidak ditemukan.' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Budget berhasil dihapus.' });
+  });
+
   // --- Category Endpoints ---
   app.get('/api/categories', requireAuth, async (req: AuthRequest, res: Response) => {
     const categories = await mysqlDb.getCategories();
@@ -312,8 +396,23 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(
+      express.static(distPath, {
+        setHeaders: (res, filePath) => {
+          // Service worker must always be revalidated so updates are picked up.
+          if (filePath.endsWith(`${path.sep}sw.js`)) {
+            res.setHeader('Cache-Control', 'no-store');
+          } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+            // Vite emits hashed filenames here: safe to cache immutably.
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          } else if (filePath.endsWith('index.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+          }
+        },
+      }),
+    );
     app.get('*', (req: Request, res: Response) => {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

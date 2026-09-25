@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api, getToken, removeToken } from './api';
-import { Category, DashboardSummary, PaymentMethod, Transaction, User } from './types';
+import { Budget, Category, DashboardSummary, PaymentMethod, Transaction, User } from './types';
 import { Navbar } from './components/Navbar';
+import { Sidebar } from './components/Sidebar';
 import { BottomNav, TabType } from './components/BottomNav';
 import { DashboardView } from './components/DashboardView';
 import { TransactionsView } from './components/TransactionsView';
@@ -22,6 +23,7 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(false);
 
   // Modal State
@@ -55,16 +57,18 @@ export default function App() {
     if (!user) return;
     setDataLoading(true);
     try {
-      const [sumRes, txsRes, catsRes, pmRes] = await Promise.all([
+      const [sumRes, txsRes, catsRes, pmRes, budRes] = await Promise.all([
         api.getDashboard(),
         api.getTransactions(),
         api.getCategories(),
         api.getPaymentMethods(),
+        api.getBudgets(),
       ]);
       setSummary(sumRes);
       setTransactions(txsRes);
       setCategories(catsRes);
       setPaymentMethods(pmRes);
+      setBudgets(budRes);
     } catch (err) {
       console.error('Failed loading app data:', err);
     } finally {
@@ -137,16 +141,26 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-900 font-sans antialiased selection:bg-emerald-200">
-      <div className="max-w-md mx-auto min-h-screen bg-slate-50 border-x border-slate-200/60 shadow-xl flex flex-col relative">
+      <Sidebar
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        onOpenAddTransaction={handleOpenAddTransaction}
+        user={user}
+        onLogout={handleLogout}
+      />
+      <div className="lg:pl-64 xl:pl-72">
+      <div className="mx-auto min-h-screen bg-slate-50 border-x border-slate-200/60 shadow-xl flex flex-col relative max-w-md md:max-w-3xl lg:max-w-none lg:border-x-0 lg:shadow-none xl:max-w-6xl xl:border-x xl:shadow-xl">
         {/* Top Header Navbar */}
         <Navbar user={user} onLogout={handleLogout} />
 
         {/* View Content */}
-        <main className="flex-1 p-4">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 w-full">
           {activeTab === 'dashboard' && (
             <DashboardView
               summary={summary}
               transactions={transactions}
+              budgets={budgets}
+              categories={categories}
               loading={dataLoading}
               onEditTransaction={handleOpenEditTransaction}
               onNavigateTransactions={() => setActiveTab('transactions')}
@@ -171,6 +185,7 @@ export default function App() {
           {activeTab === 'categories' && (
             <CategoriesView
               categories={categories}
+              paymentMethods={paymentMethods}
               loading={dataLoading}
               onRefreshCategories={loadAppData}
             />
@@ -201,6 +216,7 @@ export default function App() {
           categories={categories}
           paymentMethods={paymentMethods}
         />
+      </div>
       </div>
     </div>
   );

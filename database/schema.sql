@@ -9,6 +9,7 @@ USE `personal_finance`;
 -- Table: users
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS `transactions`;
+DROP TABLE IF EXISTS `budgets`;
 DROP TABLE IF EXISTS `categories`;
 DROP TABLE IF EXISTS `payment_methods`;
 DROP TABLE IF EXISTS `users`;
@@ -46,6 +47,24 @@ CREATE TABLE `categories` (
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   INDEX `idx_categories_type` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- Table: budgets (monthly spending limit per expense category)
+-- -----------------------------------------------------------------------------
+CREATE TABLE `budgets` (
+  `id` VARCHAR(50) NOT NULL,
+  `category_id` VARCHAR(50) NOT NULL,
+  `amount` DECIMAL(15, 2) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_budgets_category` (`category_id`),
+  CONSTRAINT `fk_budgets_category`
+    FOREIGN KEY (`category_id`)
+    REFERENCES `categories` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------

@@ -12,8 +12,10 @@ import {
   X,
   AlertTriangle,
 } from 'lucide-react';
-import { DashboardSummary, Transaction } from '../types';
+import { DashboardSummary, Budget, Category, Transaction } from '../types';
 import { api } from '../api';
+import { BudgetOverview, BudgetModal } from './Budgets';
+import { MonthField } from './DateFields';
 import { formatIDR, formatDateIndonesian, getMonthYearIndonesian, getPeriodRange, isDateInRange } from '../utils';
 
 type PeriodTab = 'daily' | 'weekly' | 'monthly';
@@ -21,6 +23,8 @@ type PeriodTab = 'daily' | 'weekly' | 'monthly';
 interface DashboardViewProps {
   summary: DashboardSummary | null;
   transactions: Transaction[];
+  budgets: Budget[];
+  categories: Category[];
   loading: boolean;
   onEditTransaction: (tx: Transaction) => void;
   onNavigateTransactions: () => void;
@@ -31,6 +35,8 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({
   summary,
   transactions,
+  budgets,
+  categories,
   loading,
   onEditTransaction,
   onNavigateTransactions,
@@ -38,6 +44,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onRefresh,
 }) => {
   const [period, setPeriod] = React.useState<PeriodTab>('monthly');
+  const [isBudgetOpen, setIsBudgetOpen] = React.useState(false);
   const [isOpeningOpen, setIsOpeningOpen] = React.useState(false);
   const [sourceMonth, setSourceMonth] = React.useState<string>('');
   const [openingLoading, setOpeningLoading] = React.useState(false);
@@ -112,7 +119,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   return (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-5 pb-24 lg:pb-10">
       {/* Month Badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-100 px-3 py-1.5 rounded-full">
@@ -144,8 +151,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         ))}
       </div>
 
+      {/* Balance + Summary: side-by-side on desktop */}
+      <div className="grid gap-5 lg:grid-cols-3 lg:items-stretch">
       {/* Main Balance Card */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden lg:col-span-2">
         <p className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-2 flex items-center justify-between">
           <span>{saldoLabel}</span>
           <button
@@ -173,7 +182,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Monthly Summary Cards Grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
         {/* Income Card */}
         <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
@@ -200,6 +209,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+      </div>
+
+      {/* Budget Overview */}
+      <BudgetOverview
+        budgets={budgets}
+        transactions={transactions}
+        onManage={() => setIsBudgetOpen(true)}
+      />
 
       {/* Recent Transactions List (5-10) */}
       <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs space-y-3">
@@ -227,15 +244,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </button>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 md:divide-y-0 md:grid md:grid-cols-2 md:gap-2">
             {recentTxs.map((tx) => {
               const isIncome = tx.transaction_type === 'income';
               return (
-                <div
-                  key={tx.id}
-                  onClick={() => onEditTransaction(tx)}
-                  className="py-3 flex items-center justify-between hover:bg-slate-50/80 -mx-2 px-2 rounded-xl transition-colors cursor-pointer group"
-                >
+                  <div
+                    key={tx.id}
+                    onClick={() => onEditTransaction(tx)}
+                    className="py-3 flex items-center justify-between hover:bg-slate-50/80 -mx-2 px-2 md:mx-0 md:px-3 md:border md:border-slate-100 md:rounded-2xl rounded-xl transition-colors cursor-pointer group"
+                  >
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
@@ -310,14 +327,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">Pilih Bulan Sumber</label>
-              <input
-                type="month"
+              <MonthField
                 value={sourceMonth}
-                onChange={(e) => {
-                  setSourceMonth(e.target.value);
+                onChange={(v) => {
+                  setSourceMonth(v);
                   setOpeningResult(null);
                 }}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="Pilih bulan"
               />
             </div>
 
@@ -365,6 +381,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       )}
+      {/* Budget Manager Modal */}
+      <BudgetModal
+        isOpen={isBudgetOpen}
+        budgets={budgets}
+        categories={categories}
+        onClose={() => setIsBudgetOpen(false)}
+        onSaved={onRefresh}
+      />
     </div>
   );
 };

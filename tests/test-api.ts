@@ -101,6 +101,50 @@ async function runApiTests() {
     return res.status === 200 && Array.isArray(data) && data.length > 0;
   });
 
+  let testPmId = '';
+  await assertTest('POST /api/payment-methods (Create)', async () => {
+    const res = await fetch(`${BASE_URL}/api/payment-methods`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ name: 'Metode Testing Uji API' }),
+    });
+    const data = await res.json();
+    if (res.status === 201 && data.id) {
+      testPmId = data.id;
+      return true;
+    }
+    return false;
+  });
+
+  await assertTest('POST /api/payment-methods (Duplicate name - should fail 400)', async () => {
+    const res = await fetch(`${BASE_URL}/api/payment-methods`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ name: 'Tunai' }),
+    });
+    return res.status === 400;
+  });
+
+  await assertTest('PUT /api/payment-methods/:id (Update)', async () => {
+    if (!testPmId) return false;
+    const res = await fetch(`${BASE_URL}/api/payment-methods/${testPmId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ name: 'Metode Testing Updated' }),
+    });
+    const data = await res.json();
+    return res.status === 200 && data.name === 'Metode Testing Updated';
+  });
+
   // 5. CATEGORIES CRUD
   let testCategoryId = '';
   await assertTest('GET /api/categories', async () => {
@@ -204,6 +248,60 @@ async function runApiTests() {
   await assertTest('DELETE /api/categories/:id (Delete created category)', async () => {
     if (!testCategoryId) return false;
     const res = await fetch(`${BASE_URL}/api/categories/${testCategoryId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    const data = await res.json();
+    return res.status === 200 && data.success === true;
+  });
+
+  // 6b. PAYMENT METHOD DELETE (after transactions that could reference it are gone)
+  await assertTest('DELETE /api/payment-methods/:id (Delete created method)', async () => {
+    if (!testPmId) return false;
+    const res = await fetch(`${BASE_URL}/api/payment-methods/${testPmId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    const data = await res.json();
+    return res.status === 200 && data.success === true;
+  });
+
+  // 6c. BUDGETS CRUD (uses seeded expense category cat_exp_1)
+  await assertTest('GET /api/budgets', async () => {
+    const res = await fetch(`${BASE_URL}/api/budgets`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    const data = await res.json();
+    return res.status === 200 && Array.isArray(data);
+  });
+
+  await assertTest('PUT /api/budgets/:categoryId (Set budget)', async () => {
+    const res = await fetch(`${BASE_URL}/api/budgets/cat_exp_1`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ amount: 1000000 }),
+    });
+    const data = await res.json();
+    return res.status === 200 && data.category_id === 'cat_exp_1' && data.amount === 1000000;
+  });
+
+  await assertTest('PUT /api/budgets/:categoryId (Invalid amount - should fail 400)', async () => {
+    const res = await fetch(`${BASE_URL}/api/budgets/cat_exp_1`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ amount: 0 }),
+    });
+    return res.status === 400;
+  });
+
+  await assertTest('DELETE /api/budgets/:categoryId (Delete budget)', async () => {
+    const res = await fetch(`${BASE_URL}/api/budgets/cat_exp_1`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${authToken}` },
     });

@@ -41,10 +41,44 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4 sm:p-6">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-slate-200 p-6 sm:p-8 space-y-6">
+      <div className="w-full max-w-md md:max-w-4xl bg-white rounded-3xl shadow-sm border border-slate-200 p-6 sm:p-8 md:p-0 space-y-6 md:space-y-0 md:grid md:grid-cols-2 md:overflow-hidden">
+        {/* Branding panel (tablet/desktop) */}
+        <div className="hidden md:flex flex-col justify-between bg-slate-900 text-white p-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+              <Wallet className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-semibold tracking-tight">Personal Finance</p>
+              <p className="text-xs text-slate-400">Catat Keuangan Harian</p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <h2 className="text-3xl font-semibold tracking-tight leading-snug">
+              Kendalikan arus kas harian Anda.
+            </h2>
+            <ul className="space-y-2.5 text-sm text-slate-300">
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                Ringkasan saldo harian, mingguan, bulanan
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                Kategori & metode pembayaran fleksibel
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                Laporan pengeluaran per kategori
+              </li>
+            </ul>
+          </div>
+          <p className="text-xs text-slate-500">Personal Finance Tracker v1.0</p>
+        </div>
+
+        <div className="space-y-6 md:p-10">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl mx-auto flex items-center justify-center shadow-md">
+          <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl mx-auto flex items-center justify-center shadow-md md:hidden">
             <Wallet className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Personal Finance</h1>
@@ -131,6 +165,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
         <div className="text-center pt-2">
           <p className="text-xs text-slate-400">Personal Finance Tracker v1.0 (Single User MVP)</p>
+        </div>
         </div>
       </div>
     </div>

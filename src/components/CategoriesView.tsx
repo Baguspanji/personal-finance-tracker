@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { Tag, Plus, Edit2, Trash2, TrendingUp, TrendingDown, AlertCircle, Check } from 'lucide-react';
-import { Category, TransactionType } from '../types';
+import { Tag, Plus, Edit2, Trash2, TrendingUp, TrendingDown, AlertCircle, Check, Wallet } from 'lucide-react';
+import { Category, PaymentMethod, TransactionType } from '../types';
 import { api } from '../api';
 
 interface CategoriesViewProps {
   categories: Category[];
+  paymentMethods: PaymentMethod[];
   loading: boolean;
   onRefreshCategories: () => void;
 }
 
 export const CategoriesView: React.FC<CategoriesViewProps> = ({
   categories,
+  paymentMethods,
   loading,
   onRefreshCategories,
 }) => {
@@ -27,6 +29,14 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Payment method state
+  const [pmModalOpen, setPmModalOpen] = useState(false);
+  const [editingPm, setEditingPm] = useState<PaymentMethod | null>(null);
+  const [pmName, setPmName] = useState('');
+  const [pmSubmitting, setPmSubmitting] = useState(false);
+  const [deletePmTarget, setDeletePmTarget] = useState<PaymentMethod | null>(null);
+  const [pmDeleting, setPmDeleting] = useState(false);
 
   const filteredCategories = categories.filter((c) => c.type === typeTab);
 
@@ -100,13 +110,80 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     }
   };
 
+  const handleOpenAddPm = () => {
+    setEditingPm(null);
+    setPmName('');
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setPmModalOpen(true);
+  };
+
+  const handleOpenEditPm = (pm: PaymentMethod) => {
+    setEditingPm(pm);
+    setPmName(pm.name);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setPmModalOpen(true);
+  };
+
+  const handleSubmitPmModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pmName.trim()) {
+      setErrorMessage('Nama metode pembayaran wajib diisi.');
+      return;
+    }
+
+    setPmSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      if (editingPm) {
+        await api.updatePaymentMethod(editingPm.id, pmName.trim());
+        setSuccessMessage('Metode pembayaran berhasil diperbarui!');
+      } else {
+        await api.createPaymentMethod(pmName.trim());
+        setSuccessMessage('Metode pembayaran baru berhasil ditambahkan!');
+      }
+      onRefreshCategories();
+      setTimeout(() => {
+        setPmModalOpen(false);
+      }, 500);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Gagal menyimpan metode pembayaran.');
+    } finally {
+      setPmSubmitting(false);
+    }
+  };
+
+  const handleDeletePmConfirm = async () => {
+    if (!deletePmTarget) return;
+
+    setPmDeleting(true);
+    setErrorMessage(null);
+
+    try {
+      await api.deletePaymentMethod(deletePmTarget.id);
+      setSuccessMessage(`Metode pembayaran "${deletePmTarget.name}" berhasil dihapus.`);
+      setDeletePmTarget(null);
+      onRefreshCategories();
+    } catch (err: any) {
+      setErrorMessage(
+        err.message ||
+          'Metode pembayaran masih digunakan oleh transaksi. Pindahkan transaksi ke metode lain sebelum menghapus.'
+      );
+      setDeletePmTarget(null);
+    } finally {
+      setPmDeleting(false);
+    }
+  };
+
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-24 lg:pb-10">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-slate-800 tracking-tight">Manajemen Kategori</h2>
-          <p className="text-xs text-slate-400">Kelola kategori pemasukan & pengeluaran</p>
+          <h2 className="text-xl font-semibold text-slate-800 tracking-tight">Kategori & Pembayaran</h2>
+          <p className="text-xs text-slate-400">Kelola kategori dan metode pembayaran</p>
         </div>
         <button
           onClick={handleOpenAdd}
@@ -156,7 +233,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       </div>
 
       {/* Category List */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-2 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-3xl p-2 sm:p-3 shadow-xs">
         {loading && categories.length === 0 ? (
           <div className="space-y-2 p-3 animate-pulse">
             <div className="h-10 bg-slate-100 rounded-xl" />
@@ -169,11 +246,11 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
             <p className="text-xs">Belum ada kategori untuk jenis ini</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 sm:divide-y-0 sm:grid sm:grid-cols-2 sm:gap-2">
             {filteredCategories.map((cat) => (
               <div
                 key={cat.id}
-                className="py-2.5 px-3 flex items-center justify-between hover:bg-slate-50 rounded-xl transition-colors"
+                className="py-2.5 px-3 flex items-center justify-between hover:bg-slate-50 rounded-xl transition-colors sm:border sm:border-slate-100"
               >
                 <div className="flex items-center gap-2.5">
                   <div
@@ -310,6 +387,145 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                 className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors disabled:opacity-50"
               >
                 {deleting ? 'Hapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Methods Section */}
+      <div className="flex items-center justify-between pt-2">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-800 tracking-tight">Metode Pembayaran</h2>
+          <p className="text-xs text-slate-400">Kelola dompet, rekening & e-wallet</p>
+        </div>
+        <button
+          onClick={handleOpenAddPm}
+          className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Metode Baru
+        </button>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-3xl p-2 sm:p-3 shadow-xs">
+        {loading && paymentMethods.length === 0 ? (
+          <div className="space-y-2 p-3 animate-pulse">
+            <div className="h-10 bg-slate-100 rounded-xl" />
+            <div className="h-10 bg-slate-100 rounded-xl" />
+          </div>
+        ) : paymentMethods.length === 0 ? (
+          <div className="text-center py-8 text-slate-400 space-y-2">
+            <Wallet className="w-8 h-8 mx-auto text-slate-300 stroke-1" />
+            <p className="text-xs">Belum ada metode pembayaran</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100 sm:divide-y-0 sm:grid sm:grid-cols-2 sm:gap-2">
+            {paymentMethods.map((pm) => (
+              <div
+                key={pm.id}
+                className="py-2.5 px-3 flex items-center justify-between hover:bg-slate-50 rounded-xl transition-colors sm:border sm:border-slate-100"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-900 text-white">
+                    <Wallet className="w-4 h-4" />
+                  </div>
+                  <span className="font-semibold text-slate-800 text-sm">{pm.name}</span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleOpenEditPm(pm)}
+                    title="Edit Metode Pembayaran"
+                    className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeletePmTarget(pm)}
+                    title="Hapus Metode Pembayaran"
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Add / Edit Payment Method Modal */}
+      {pmModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="font-bold text-slate-800 text-base">
+              {editingPm ? 'Edit Metode Pembayaran' : 'Tambah Metode Pembayaran'}
+            </h3>
+
+            <form onSubmit={handleSubmitPmModal} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Nama Metode</label>
+                <input
+                  type="text"
+                  value={pmName}
+                  onChange={(e) => setPmName(e.target.value)}
+                  placeholder="Misal: BCA, GoPay, Tunai..."
+                  required
+                  autoFocus
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPmModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={pmSubmitting}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {pmSubmitting ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete Payment Method Modal */}
+      {deletePmTarget && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800 text-base">Hapus Metode Pembayaran?</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Apakah Anda yakin ingin menghapus <strong>"{deletePmTarget.name}"</strong>?
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletePmTarget(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleDeletePmConfirm}
+                disabled={pmDeleting}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {pmDeleting ? 'Menghapus...' : 'Ya, Hapus'}
               </button>
             </div>
           </div>

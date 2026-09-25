@@ -2,6 +2,8 @@ import React from 'react';
 import { PieChart as PieIcon, Calendar } from 'lucide-react';
 import { Transaction } from '../types';
 import { formatIDR, getMonthYearIndonesian } from '../utils';
+import { CashflowChart } from './CashflowChart';
+import { MonthField } from './DateFields';
 
 interface ReportsViewProps {
   transactions: Transaction[];
@@ -79,24 +81,26 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ transactions, loading 
   const displaySlice = activeIndex !== null ? slices[activeIndex] : null;
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-24 lg:pb-10">
       <div>
         <h2 className="text-xl font-semibold text-slate-800 tracking-tight">Laporan Pengeluaran</h2>
-        <p className="text-xs text-slate-400">Rincian pengeluaran per kategori</p>
+        <p className="text-xs text-slate-400">Arus kas dan rincian pengeluaran per kategori</p>
       </div>
+
+      {/* Cashflow Trend */}
+      <CashflowChart transactions={transactions} loading={loading} />
 
       {/* Month Selector */}
       <div className="bg-white border border-slate-200 rounded-3xl p-3.5 shadow-xs">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-slate-400 ml-1" />
-          <input
-            type="month"
+          <MonthField
             value={month}
-            onChange={(e) => {
-              setMonth(e.target.value || currentMonth());
+            onChange={(v) => {
+              setMonth(v || currentMonth());
               setActiveIndex(null);
             }}
-            className="bg-transparent text-sm font-semibold text-slate-800 focus:outline-none flex-1"
+            placeholder="Pilih bulan"
           />
         </div>
       </div>
@@ -112,10 +116,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ transactions, loading 
           <p className="text-xs text-slate-400">Pilih bulan lain atau tambah transaksi pengeluaran.</p>
         </div>
       ) : (
-        <>
+        <div className="grid gap-4 md:grid-cols-5 md:items-start">
           {/* Donut Chart */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs flex flex-col items-center">
-            <svg viewBox="0 0 200 200" className="w-full max-w-[220px]">
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs flex flex-col items-center md:col-span-2 md:sticky md:top-20">
+            <svg viewBox="0 0 200 200" className="w-full max-w-[220px] md:max-w-[260px]">
               {total > 0 &&
                 slices.map((s, i) => (
                   <path
@@ -151,7 +155,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ transactions, loading 
           </div>
 
           {/* Legend / List */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs space-y-2">
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs space-y-2 md:col-span-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-1">
               <h3 className="font-semibold text-slate-800 text-sm">Rincian Kategori</h3>
               <span className="text-[11px] text-slate-400">{grouped.length} kategori</span>
@@ -180,7 +184,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ transactions, loading 
               ))}
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

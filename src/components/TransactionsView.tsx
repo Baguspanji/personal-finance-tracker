@@ -49,9 +49,9 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   });
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-24 lg:pb-10">
       {/* Header & Add Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between lg:col-span-2">
         <div>
           <h2 className="text-xl font-semibold text-slate-800 tracking-tight">Daftar Transaksi</h2>
           <p className="text-xs text-slate-400">Kelola riwayat pemasukan dan pengeluaran</p>
@@ -64,8 +64,9 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
         </button>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
       {/* Filter Tabs & Search */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-3.5 space-y-3 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-3xl p-3.5 space-y-3 shadow-xs lg:sticky lg:top-20">
         {/* Search Input */}
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -79,12 +80,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
         </div>
 
         {/* Filter Buttons */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-medium">
+        <div className="flex sm:flex-col items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-medium">
           <button
             onClick={() => setFilterType('all')}
             className={`flex-1 py-1.5 rounded-lg transition-all ${
               filterType === 'all'
-                ? 'bg-white text-slate-800 font-semibold shadow-xs'
+                ? 'bg-white text-slate-800 font-semibold shadow-xs px-4'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -94,7 +95,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             onClick={() => setFilterType('income')}
             className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 ${
               filterType === 'income'
-                ? 'bg-emerald-600 text-white font-semibold shadow-xs'
+                ? 'bg-emerald-600 text-white font-semibold shadow-xs px-4'
                 : 'text-emerald-700 hover:bg-emerald-50'
             }`}
           >
@@ -104,7 +105,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             onClick={() => setFilterType('expense')}
             className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 ${
               filterType === 'expense'
-                ? 'bg-rose-600 text-white font-semibold shadow-xs'
+                ? 'bg-rose-600 text-white font-semibold shadow-xs px-4'
                 : 'text-rose-700 hover:bg-rose-50'
             }`}
           >
@@ -219,6 +220,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
           })}
         </div>
       )}
+      </div>
     </div>
   );
 };

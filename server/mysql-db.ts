@@ -1,6 +1,6 @@
 import mysql from 'mysql2/promise';
 import { dbConfig } from '../database/config.js';
-import { db as jsonDb, DBUser, DBCategory, DBPaymentMethod, DBTransaction } from './db.js';
+import { db as jsonDb, DBUser, DBCategory, DBPaymentMethod, DBBudget, DBTransaction } from './db.js';
 
 let pool: mysql.Pool | null = null;
 let isMySqlAvailable = false;
@@ -115,6 +115,159 @@ export async function getPaymentMethodById(id: string): Promise<DBPaymentMethod 
     return null;
   } catch (err) {
     return jsonDb.getPaymentMethodById(id) || null;
+  }
+}
+
+export async function createPaymentMethod(name: string): Promise<DBPaymentMethod> {
+  const id = `pm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    const p = getPool();
+    await p.execute(
+      'INSERT INTO payment_methods (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)',
+      [id, name.trim(), now, now]
+    );
+    return {
+      id,
+      name: name.trim(),
+      created_at: new Date(now).toISOString(),
+      updated_at: new Date(now).toISOString(),
+    };
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg.includes('Duplicate entry') || (err as { code?: string }).code === 'ER_DUP_ENTRY') {
+      throw new Error('Metode pembayaran dengan nama tersebut sudah ada.');
+    }
+    console.warn('MySQL createPaymentMethod error, falling back to JSON DB:', msg);
+    return jsonDb.createPaymentMethod(name);
+  }
+}
+
+export async function updatePaymentMethod(id: string, name: string): Promise<DBPaymentMethod | null> {
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    const p = getPool();
+    const [result] = await p.execute<mysql.ResultSetHeader>(
+      'UPDATE payment_methods SET name = ?, updated_at = ? WHERE id = ?',
+      [name.trim(), now, id]
+    );
+    if (result.affectedRows === 0) return null;
+    return getPaymentMethodById(id);
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg.includes('Duplicate entry') || (err as { code?: string }).code === 'ER_DUP_ENTRY') {
+      throw new Error('Metode pembayaran dengan nama tersebut sudah ada.');
+    }
+    console.warn('MySQL updatePaymentMethod error, falling back to JSON DB:', msg);
+    return jsonDb.updatePaymentMethod(id, name);
+  }
+}
+
+export async function deletePaymentMethod(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const p = getPool();
+    const [txRows] = await p.execute<mysql.RowDataPacket[]>(
+      'SELECT COUNT(*) as cnt FROM transactions WHERE payment_method_id = ?',
+      [id]
+    );
+    if (txRows[0].cnt > 0) {
+      return {
+        success: false,
+        error: 'Metode pembayaran tidak dapat dihapus karena masih digunakan dalam transaksi.',
+      };
+    }
+    const [result] = await p.execute<mysql.ResultSetHeader>(
+      'DELETE FROM payment_methods WHERE id = ?',
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return { success: false, error: 'Metode pembayaran tidak ditemukan.' };
+    }
+    return { success: true };
+  } catch (err) {
+    console.warn('MySQL deletePaymentMethod error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.deletePaymentMethod(id);
+  }
+}
+
+export interface BudgetWithCategory extends DBBudget {
+  category_name: string;
+}
+
+export async function getBudgets(): Promise<BudgetWithCategory[]> {
+  try {
+    const p = getPool();
+    const [rows] = await p.execute<mysql.RowDataPacket[]>(`
+      SELECT b.id, b.category_id, CAST(b.amount AS DOUBLE) as amount, b.created_at, b.updated_at,
+             c.name as category_name
+      FROM budgets b
+      JOIN categories c ON b.category_id = c.id
+      ORDER BY c.name ASC
+    `);
+    return rows.map((r) => ({
+      id: r.id,
+      category_id: r.category_id,
+      amount: Number(r.amount),
+      created_at: new Date(r.created_at).toISOString(),
+      updated_at: new Date(r.updated_at).toISOString(),
+      category_name: r.category_name,
+    }));
+  } catch (err) {
+    console.warn('MySQL getBudgets error, falling back to JSON DB:', (err as Error).message);
+    const cats = new Map(jsonDb.getCategories().map((c) => [c.id, c.name]));
+    return jsonDb
+      .getBudgets()
+      .filter((b) => cats.has(b.category_id))
+      .map((b) => ({ ...b, category_name: cats.get(b.category_id) || 'Kategori Lain' }));
+  }
+}
+
+export async function setBudget(categoryId: string, amount: number): Promise<BudgetWithCategory> {
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    const p = getPool();
+    const category = await getCategoryById(categoryId);
+    if (!category) throw new Error('Kategori tidak ditemukan.');
+    if (category.type !== 'expense') throw new Error('Budget hanya dapat diatur untuk kategori pengeluaran.');
+
+    const id = `bud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    await p.execute(
+      `INSERT INTO budgets (id, category_id, amount, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE amount = VALUES(amount), updated_at = VALUES(updated_at)`,
+      [id, categoryId, amount, now, now]
+    );
+    const budgets = await getBudgets();
+    const saved = budgets.find((b) => b.category_id === categoryId);
+    if (!saved) throw new Error('Budget gagal disimpan.');
+    return saved;
+  } catch (err) {
+    if ((err as Error).message.startsWith('Budget') || (err as Error).message.startsWith('Kategori')) {
+      throw err;
+    }
+    console.warn('MySQL setBudget error, falling back to JSON DB:', (err as Error).message);
+    const category = jsonDb.getCategoryById(categoryId);
+    if (!category) throw new Error('Kategori tidak ditemukan.');
+    if (category.type !== 'expense') throw new Error('Budget hanya dapat diatur untuk kategori pengeluaran.');
+    const saved = jsonDb.setBudget(categoryId, amount);
+    return { ...saved, category_name: category.name };
+  }
+}
+
+export async function deleteBudget(categoryId: string): Promise<boolean> {
+  try {
+    const p = getPool();
+    const [result] = await p.execute<mysql.ResultSetHeader>(
+      'DELETE FROM budgets WHERE category_id = ?',
+      [categoryId]
+    );
+    return result.affectedRows > 0;
+  } catch (err) {
+    console.warn('MySQL deleteBudget error, falling back to JSON DB:', (err as Error).message);
+    return jsonDb.deleteBudget(categoryId);
   }
 }
 

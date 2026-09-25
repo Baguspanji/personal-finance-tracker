@@ -28,6 +28,14 @@ export interface DBPaymentMethod {
   updated_at: string;
 }
 
+export interface DBBudget {
+  id: string;
+  category_id: string;
+  amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DBTransaction {
   id: string;
   category_id: string;
@@ -45,6 +53,7 @@ export interface DBData {
   users: DBUser[];
   categories: DBCategory[];
   payment_methods: DBPaymentMethod[];
+  budgets: DBBudget[];
   transactions: DBTransaction[];
 }
 
@@ -182,7 +191,27 @@ function initialSeedData(): DBData {
     },
   ];
 
-  return { users, categories, payment_methods, transactions };
+  return { users, categories, payment_methods, budgets: seedBudgets(now), transactions };
+}
+
+function seedBudgets(now: string): DBBudget[] {
+  const seed: [string, string, number][] = [
+    ['bud_1', 'cat_exp_1', 1500000],
+    ['bud_2', 'cat_exp_2', 500000],
+    ['bud_3', 'cat_exp_3', 1000000],
+    ['bud_4', 'cat_exp_4', 800000],
+    ['bud_5', 'cat_exp_5', 500000],
+    ['bud_6', 'cat_exp_6', 500000],
+    ['bud_7', 'cat_exp_7', 1000000],
+    ['bud_8', 'cat_exp_8', 300000],
+  ];
+  return seed.map(([id, category_id, amount]) => ({
+    id,
+    category_id,
+    amount,
+    created_at: now,
+    updated_at: now,
+  }));
 }
 
 export class JsonDB {
@@ -196,7 +225,10 @@ export class JsonDB {
     try {
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw) as DBData;
+        // Backfill fields introduced after the file was created.
+        if (!Array.isArray(parsed.budgets)) parsed.budgets = [];
+        return parsed;
       }
     } catch (err) {
       console.error('Failed reading db file, re-seeding:', err);
@@ -234,6 +266,96 @@ export class JsonDB {
 
   getPaymentMethodById(id: string): DBPaymentMethod | undefined {
     return this.data.payment_methods.find((pm) => pm.id === id);
+  }
+
+  createPaymentMethod(name: string): DBPaymentMethod {
+    const trimmed = name.trim();
+    if (this.data.payment_methods.some((pm) => pm.name.toLowerCase() === trimmed.toLowerCase())) {
+      throw new Error('Metode pembayaran dengan nama tersebut sudah ada.');
+    }
+    const now = nowISO();
+    const pm: DBPaymentMethod = {
+      id: 'pm_' + generateId(),
+      name: trimmed,
+      created_at: now,
+      updated_at: now,
+    };
+    this.data.payment_methods.push(pm);
+    this.save();
+    return pm;
+  }
+
+  updatePaymentMethod(id: string, name: string): DBPaymentMethod | null {
+    const trimmed = name.trim();
+    const idx = this.data.payment_methods.findIndex((pm) => pm.id === id);
+    if (idx === -1) return null;
+    if (
+      this.data.payment_methods.some(
+        (pm) => pm.id !== id && pm.name.toLowerCase() === trimmed.toLowerCase()
+      )
+    ) {
+      throw new Error('Metode pembayaran dengan nama tersebut sudah ada.');
+    }
+    this.data.payment_methods[idx] = {
+      ...this.data.payment_methods[idx],
+      name: trimmed,
+      updated_at: nowISO(),
+    };
+    this.save();
+    return this.data.payment_methods[idx];
+  }
+
+  deletePaymentMethod(id: string): { success: boolean; error?: string } {
+    const usedCount = this.data.transactions.filter((t) => t.payment_method_id === id).length;
+    if (usedCount > 0) {
+      return {
+        success: false,
+        error: 'Metode pembayaran masih digunakan oleh transaksi. Pindahkan transaksi ke metode lain sebelum menghapus.',
+      };
+    }
+    const initialLen = this.data.payment_methods.length;
+    this.data.payment_methods = this.data.payment_methods.filter((pm) => pm.id !== id);
+    if (this.data.payment_methods.length === initialLen) {
+      return { success: false, error: 'Metode pembayaran tidak ditemukan.' };
+    }
+    this.save();
+    return { success: true };
+  }
+
+  // Budgets (one monthly limit per category)
+  getBudgets(): DBBudget[] {
+    return this.data.budgets ?? [];
+  }
+
+  setBudget(categoryId: string, amount: number): DBBudget {
+    if (!this.data.budgets) this.data.budgets = [];
+    const now = nowISO();
+    const existing = this.data.budgets.find((b) => b.category_id === categoryId);
+    if (existing) {
+      existing.amount = amount;
+      existing.updated_at = now;
+      this.save();
+      return existing;
+    }
+    const budget: DBBudget = {
+      id: 'bud_' + generateId(),
+      category_id: categoryId,
+      amount,
+      created_at: now,
+      updated_at: now,
+    };
+    this.data.budgets.push(budget);
+    this.save();
+    return budget;
+  }
+
+  deleteBudget(categoryId: string): boolean {
+    if (!this.data.budgets) return false;
+    const initialLen = this.data.budgets.length;
+    this.data.budgets = this.data.budgets.filter((b) => b.category_id !== categoryId);
+    if (this.data.budgets.length === initialLen) return false;
+    this.save();
+    return true;
   }
 
   // Categories
@@ -287,6 +409,10 @@ export class JsonDB {
     this.data.categories = this.data.categories.filter((c) => c.id !== id);
     if (this.data.categories.length === initialLen) {
       return { success: false, error: 'Kategori tidak ditemukan' };
+    }
+    // Cascade: remove budget attached to the deleted category.
+    if (this.data.budgets) {
+      this.data.budgets = this.data.budgets.filter((b) => b.category_id !== id);
     }
 
     this.save();

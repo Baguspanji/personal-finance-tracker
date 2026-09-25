@@ -23,6 +23,15 @@ export interface PaymentMethod {
   updated_at: string;
 }
 
+export interface Budget {
+  id: string;
+  category_id: string;
+  amount: number;
+  created_at: string;
+  updated_at: string;
+  category_name?: string;
+}
+
 export interface Transaction {
   id: string;
   category_id: string;

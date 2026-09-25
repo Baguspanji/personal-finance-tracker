@@ -8,6 +8,7 @@ USE `personal_finance`;
 SET FOREIGN_KEY_CHECKS = 0;
 
 TRUNCATE TABLE `transactions`;
+TRUNCATE TABLE `budgets`;
 TRUNCATE TABLE `categories`;
 TRUNCATE TABLE `payment_methods`;
 TRUNCATE TABLE `users`;
@@ -51,6 +52,19 @@ INSERT INTO `categories` (`id`, `name`, `type`, `created_at`, `updated_at`) VALU
 ('cat_exp_6', 'Kesehatan', 'expense', NOW(), NOW()),
 ('cat_exp_7', 'Pendidikan', 'expense', NOW(), NOW()),
 ('cat_exp_8', 'Lainnya', 'expense', NOW(), NOW());
+
+-- -----------------------------------------------------------------------------
+-- Seeder: Budgets (Monthly limit per expense category)
+-- -----------------------------------------------------------------------------
+INSERT INTO `budgets` (`id`, `category_id`, `amount`, `created_at`, `updated_at`) VALUES
+('bud_1', 'cat_exp_1', 1500000.00, NOW(), NOW()),
+('bud_2', 'cat_exp_2', 500000.00, NOW(), NOW()),
+('bud_3', 'cat_exp_3', 1000000.00, NOW(), NOW()),
+('bud_4', 'cat_exp_4', 800000.00, NOW(), NOW()),
+('bud_5', 'cat_exp_5', 500000.00, NOW(), NOW()),
+('bud_6', 'cat_exp_6', 500000.00, NOW(), NOW()),
+('bud_7', 'cat_exp_7', 1000000.00, NOW(), NOW()),
+('bud_8', 'cat_exp_8', 300000.00, NOW(), NOW());
 
 -- -----------------------------------------------------------------------------
 -- Seeder: Initial Transactions

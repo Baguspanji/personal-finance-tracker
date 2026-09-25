@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  <!-- coin -->
+  <circle cx="336" cy="148" r="66" fill="#fbbf24"/>
+  <circle cx="336" cy="148" r="48" fill="#f59e0b"/>
+  <rect x="328" y="118" width="16" height="60" rx="8" fill="#fef3c7"/>
+  <rect x="312" y="140" width="48" height="16" rx="8" fill="#fef3c7"/>
+  <!-- wallet body -->
+  <rect x="88" y="212" width="336" height="184" rx="38" fill="#10b981"/>
+  <rect x="88" y="212" width="336" height="184" rx="38" fill="#10b981"/>
+  <!-- wallet top highlight -->
+  <rect x="120" y="238" width="120" height="22" rx="11" fill="#a7f3d0" opacity="0.85"/>
+  <!-- wallet pocket -->
+  <rect x="264" y="262" width="160" height="88" rx="26" fill="#065f46"/>
+  <!-- clasp -->
+  <circle cx="344" cy="306" r="14" fill="#ecfdf5"/>
+</svg>
