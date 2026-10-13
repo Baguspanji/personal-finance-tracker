@@ -61,3 +61,14 @@ export interface AuthResponse {
   user: User;
   token: string;
 }
+
+export interface McpKey {
+  id: string;
+  user_id: string;
+  name: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  /** Only present in the response that creates the key. Never persisted. */
+  plaintext?: string;
+}

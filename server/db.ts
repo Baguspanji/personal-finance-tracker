@@ -30,6 +30,7 @@ export interface DBPaymentMethod {
 
 export interface DBBudget {
   id: string;
+  user_id: string;
   category_id: string;
   amount: number;
   created_at: string;
@@ -38,6 +39,7 @@ export interface DBBudget {
 
 export interface DBTransaction {
   id: string;
+  user_id: string;
   category_id: string;
   payment_method_id: string;
   transaction_type: TransactionType;
@@ -49,15 +51,33 @@ export interface DBTransaction {
   updated_at: string;
 }
 
+export interface DBMcpKey {
+  id: string;
+  user_id: string;
+  name: string;
+  key_hash: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+}
+
 export interface DBData {
   users: DBUser[];
   categories: DBCategory[];
   payment_methods: DBPaymentMethod[];
   budgets: DBBudget[];
   transactions: DBTransaction[];
+  mcp_keys: DBMcpKey[];
 }
 
 const DB_FILE = path.join(process.cwd(), 'data_db.json');
+
+/**
+ * Pemilik default untuk row lama di data_db.json yang belum punya user_id.
+ * Sama dengan klaim awal di `npm run db:user-scope`, supaya dua jalur DB
+ * konsisten.
+ */
+const DEFAULT_USER_ID = 'usr_1';
 
 function nowISO(): string {
   return new Date().toISOString();
@@ -125,6 +145,7 @@ function initialSeedData(): DBData {
   const transactions: DBTransaction[] = [
     {
       id: 'tx_1',
+      user_id: 'usr_1',
       category_id: 'cat_inc_1',
       payment_method_id: 'pm_2',
       transaction_type: 'income',
@@ -136,6 +157,7 @@ function initialSeedData(): DBData {
     },
     {
       id: 'tx_2',
+      user_id: 'usr_1',
       category_id: 'cat_exp_1',
       payment_method_id: 'pm_3',
       transaction_type: 'expense',
@@ -147,6 +169,7 @@ function initialSeedData(): DBData {
     },
     {
       id: 'tx_3',
+      user_id: 'usr_1',
       category_id: 'cat_exp_2',
       payment_method_id: 'pm_4',
       transaction_type: 'expense',
@@ -158,6 +181,7 @@ function initialSeedData(): DBData {
     },
     {
       id: 'tx_4',
+      user_id: 'usr_1',
       category_id: 'cat_exp_4',
       payment_method_id: 'pm_2',
       transaction_type: 'expense',
@@ -169,6 +193,7 @@ function initialSeedData(): DBData {
     },
     {
       id: 'tx_5',
+      user_id: 'usr_1',
       category_id: 'cat_inc_3',
       payment_method_id: 'pm_2',
       transaction_type: 'income',
@@ -180,6 +205,7 @@ function initialSeedData(): DBData {
     },
     {
       id: 'tx_6',
+      user_id: 'usr_1',
       category_id: 'cat_exp_3',
       payment_method_id: 'pm_5',
       transaction_type: 'expense',
@@ -191,7 +217,7 @@ function initialSeedData(): DBData {
     },
   ];
 
-  return { users, categories, payment_methods, budgets: seedBudgets(now), transactions };
+  return { users, categories, payment_methods, budgets: seedBudgets(now), transactions, mcp_keys: [] };
 }
 
 function seedBudgets(now: string): DBBudget[] {
@@ -207,6 +233,7 @@ function seedBudgets(now: string): DBBudget[] {
   ];
   return seed.map(([id, category_id, amount]) => ({
     id,
+    user_id: 'usr_1',
     category_id,
     amount,
     created_at: now,
@@ -228,6 +255,7 @@ export class JsonDB {
         const parsed = JSON.parse(raw) as DBData;
         // Backfill fields introduced after the file was created.
         if (!Array.isArray(parsed.budgets)) parsed.budgets = [];
+        if (!Array.isArray(parsed.mcp_keys)) parsed.mcp_keys = [];
         return parsed;
       }
     } catch (err) {
@@ -257,6 +285,44 @@ export class JsonDB {
 
   getUserById(id: string): DBUser | undefined {
     return this.data.users.find((u) => u.id === id);
+  }
+
+  // MCP Keys
+  listMcpKeys(userId: string): DBMcpKey[] {
+    return this.data.mcp_keys
+      .filter((k) => k.user_id === userId)
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  }
+
+  createMcpKey(userId: string, name: string, id: string, keyHash: string): DBMcpKey {
+    const key: DBMcpKey = {
+      id,
+      user_id: userId,
+      name: name.trim(),
+      key_hash: keyHash,
+      last_used_at: null,
+      revoked_at: null,
+      created_at: nowISO(),
+    };
+    this.data.mcp_keys.push(key);
+    this.save();
+    return key;
+  }
+
+  getMcpKeyByHash(keyHash: string): DBMcpKey | undefined {
+    const key = this.data.mcp_keys.find((k) => k.key_hash === keyHash && !k.revoked_at);
+    if (!key) return undefined;
+    key.last_used_at = nowISO();
+    this.save();
+    return key;
+  }
+
+  revokeMcpKey(id: string, userId: string): boolean {
+    const key = this.data.mcp_keys.find((k) => k.id === id && k.user_id === userId);
+    if (!key || key.revoked_at) return false;
+    key.revoked_at = nowISO();
+    this.save();
+    return true;
   }
 
   // Payment Methods
@@ -322,15 +388,15 @@ export class JsonDB {
     return { success: true };
   }
 
-  // Budgets (one monthly limit per category)
-  getBudgets(): DBBudget[] {
-    return this.data.budgets ?? [];
+  // Budgets (one monthly limit per user+category)
+  getBudgets(userId: string): DBBudget[] {
+    return (this.data.budgets ?? []).filter((b) => b.user_id === userId);
   }
 
-  setBudget(categoryId: string, amount: number): DBBudget {
+  setBudget(userId: string, categoryId: string, amount: number): DBBudget {
     if (!this.data.budgets) this.data.budgets = [];
     const now = nowISO();
-    const existing = this.data.budgets.find((b) => b.category_id === categoryId);
+    const existing = this.data.budgets.find((b) => b.user_id === userId && b.category_id === categoryId);
     if (existing) {
       existing.amount = amount;
       existing.updated_at = now;
@@ -339,6 +405,7 @@ export class JsonDB {
     }
     const budget: DBBudget = {
       id: 'bud_' + generateId(),
+      user_id: userId,
       category_id: categoryId,
       amount,
       created_at: now,
@@ -349,10 +416,12 @@ export class JsonDB {
     return budget;
   }
 
-  deleteBudget(categoryId: string): boolean {
+  deleteBudget(userId: string, categoryId: string): boolean {
     if (!this.data.budgets) return false;
     const initialLen = this.data.budgets.length;
-    this.data.budgets = this.data.budgets.filter((b) => b.category_id !== categoryId);
+    this.data.budgets = this.data.budgets.filter(
+      (b) => !(b.user_id === userId && b.category_id === categoryId)
+    );
     if (this.data.budgets.length === initialLen) return false;
     this.save();
     return true;
@@ -420,40 +489,50 @@ export class JsonDB {
   }
 
   // Transactions
-  getTransactions(): DBTransaction[] {
-    return [...this.data.transactions].sort((a, b) =>
-      b.transaction_date.localeCompare(a.transaction_date) || b.created_at.localeCompare(a.created_at)
+  getTransactions(userId: string): DBTransaction[] {
+    return this.data.transactions
+      .filter((t) => (t.user_id ?? DEFAULT_USER_ID) === userId)
+      .sort((a, b) =>
+        b.transaction_date.localeCompare(a.transaction_date) || b.created_at.localeCompare(a.created_at)
+      );
+  }
+
+  getTransactionById(userId: string, id: string): DBTransaction | undefined {
+    return this.data.transactions.find(
+      (t) => t.id === id && (t.user_id ?? DEFAULT_USER_ID) === userId
     );
   }
 
-  getTransactionById(id: string): DBTransaction | undefined {
-    return this.data.transactions.find((t) => t.id === id);
+  getTransactionsByMonth(userId: string, yearMonth: string): DBTransaction[] {
+    return this.getTransactions(userId).filter((t) => t.transaction_date.startsWith(yearMonth));
   }
 
-  getTransactionsByMonth(yearMonth: string): DBTransaction[] {
-    return this.getTransactions().filter((t) => t.transaction_date.startsWith(yearMonth));
-  }
-
-  deleteTransaction(id: string): boolean {
+  deleteTransaction(userId: string, id: string): boolean {
     const initialLen = this.data.transactions.length;
-    this.data.transactions = this.data.transactions.filter((t) => t.id !== id);
+    this.data.transactions = this.data.transactions.filter(
+      (t) => !(t.id === id && (t.user_id ?? DEFAULT_USER_ID) === userId)
+    );
     if (this.data.transactions.length === initialLen) return false;
     this.save();
     return true;
   }
 
-  createTransaction(payload: {
-    category_id: string;
-    payment_method_id: string;
-    transaction_type: TransactionType;
-    amount: number;
-    transaction_date: string;
-    notes?: string;
-    is_opening?: boolean;
-  }): DBTransaction {
+  createTransaction(
+    userId: string,
+    payload: {
+      category_id: string;
+      payment_method_id: string;
+      transaction_type: TransactionType;
+      amount: number;
+      transaction_date: string;
+      notes?: string;
+      is_opening?: boolean;
+    }
+  ): DBTransaction {
     const now = nowISO();
     const newTx: DBTransaction = {
       id: 'tx_' + generateId(),
+      user_id: userId,
       category_id: payload.category_id,
       payment_method_id: payload.payment_method_id,
       transaction_type: payload.transaction_type,
@@ -470,6 +549,7 @@ export class JsonDB {
   }
 
   updateTransaction(
+    userId: string,
     id: string,
     payload: {
       category_id?: string;
@@ -481,7 +561,9 @@ export class JsonDB {
       is_opening?: boolean;
     }
   ): DBTransaction | null {
-    const idx = this.data.transactions.findIndex((t) => t.id === id);
+    const idx = this.data.transactions.findIndex(
+      (t) => t.id === id && (t.user_id ?? DEFAULT_USER_ID) === userId
+    );
     if (idx === -1) return null;
 
     const existing = this.data.transactions[idx];
@@ -500,23 +582,25 @@ export class JsonDB {
     return this.data.transactions[idx];
   }
 
-  deleteTransactionsByOpeningMonth(monthStart: string): number {
+  deleteTransactionsByOpeningMonth(userId: string, monthStart: string): number {
     const before = this.data.transactions.length;
     this.data.transactions = this.data.transactions.filter(
-      (t) => !(t.is_opening && t.transaction_date === monthStart)
+      (t) => !(t.is_opening && t.transaction_date === monthStart && (t.user_id ?? DEFAULT_USER_ID) === userId)
     );
     const removed = before - this.data.transactions.length;
     if (removed > 0) this.save();
     return removed;
   }
 
-  getOpeningTransactionForMonth(monthStart: string): DBTransaction | undefined {
-    return this.data.transactions.find((t) => t.is_opening && t.transaction_date === monthStart);
+  getOpeningTransactionForMonth(userId: string, monthStart: string): DBTransaction | undefined {
+    return this.data.transactions.find(
+      (t) => t.is_opening && t.transaction_date === monthStart && (t.user_id ?? DEFAULT_USER_ID) === userId
+    );
   }
 
   // Dashboard Summary calculation
-  getDashboardSummary() {
-    const allTxs = this.getTransactions();
+  getDashboardSummary(userId: string) {
+    const allTxs = this.getTransactions(userId);
     const categoriesMap = new Map(this.getCategories().map((c) => [c.id, c.name]));
     const pmMap = new Map(this.getPaymentMethods().map((pm) => [pm.id, pm.name]));
 

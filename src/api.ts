@@ -1,4 +1,4 @@
-import { AuthResponse, Budget, Category, DashboardSummary, PaymentMethod, Transaction, User } from './types';
+import { AuthResponse, Budget, Category, DashboardSummary, McpKey, PaymentMethod, Transaction, User } from './types';
 
 const TOKEN_KEY = 'finance_tracker_token';
 
@@ -202,5 +202,22 @@ export const api = {
     return fetchApi<{ success: boolean; message: string }>(`/api/transactions/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  // MCP Access Keys
+  listMcpKeys: async (): Promise<McpKey[]> => {
+    return fetchApi<McpKey[]>('/api/mcp-keys');
+  },
+
+  // The plaintext key is returned here and never again.
+  createMcpKey: async (name: string): Promise<McpKey> => {
+    return fetchApi<McpKey>('/api/mcp-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  revokeMcpKey: async (id: string): Promise<{ success: boolean }> => {
+    return fetchApi<{ success: boolean }>(`/api/mcp-keys/${id}`, { method: 'DELETE' });
   },
 };

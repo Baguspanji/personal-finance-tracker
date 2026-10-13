@@ -56,23 +56,23 @@ INSERT INTO `categories` (`id`, `name`, `type`, `created_at`, `updated_at`) VALU
 -- -----------------------------------------------------------------------------
 -- Seeder: Budgets (Monthly limit per expense category)
 -- -----------------------------------------------------------------------------
-INSERT INTO `budgets` (`id`, `category_id`, `amount`, `created_at`, `updated_at`) VALUES
-('bud_1', 'cat_exp_1', 1500000.00, NOW(), NOW()),
-('bud_2', 'cat_exp_2', 500000.00, NOW(), NOW()),
-('bud_3', 'cat_exp_3', 1000000.00, NOW(), NOW()),
-('bud_4', 'cat_exp_4', 800000.00, NOW(), NOW()),
-('bud_5', 'cat_exp_5', 500000.00, NOW(), NOW()),
-('bud_6', 'cat_exp_6', 500000.00, NOW(), NOW()),
-('bud_7', 'cat_exp_7', 1000000.00, NOW(), NOW()),
-('bud_8', 'cat_exp_8', 300000.00, NOW(), NOW());
+INSERT INTO `budgets` (`id`, `user_id`, `category_id`, `amount`, `created_at`, `updated_at`) VALUES
+('bud_1', 'usr_1', 'cat_exp_1', 1500000.00, NOW(), NOW()),
+('bud_2', 'usr_1', 'cat_exp_2', 500000.00, NOW(), NOW()),
+('bud_3', 'usr_1', 'cat_exp_3', 1000000.00, NOW(), NOW()),
+('bud_4', 'usr_1', 'cat_exp_4', 800000.00, NOW(), NOW()),
+('bud_5', 'usr_1', 'cat_exp_5', 500000.00, NOW(), NOW()),
+('bud_6', 'usr_1', 'cat_exp_6', 500000.00, NOW(), NOW()),
+('bud_7', 'usr_1', 'cat_exp_7', 1000000.00, NOW(), NOW()),
+('bud_8', 'usr_1', 'cat_exp_8', 300000.00, NOW(), NOW());
 
 -- -----------------------------------------------------------------------------
--- Seeder: Initial Transactions
+-- Seeder: Initial Transactions (semua milik usr_1)
 -- -----------------------------------------------------------------------------
-INSERT INTO `transactions` (`id`, `category_id`, `payment_method_id`, `transaction_type`, `amount`, `transaction_date`, `notes`, `created_at`, `updated_at`) VALUES
-('tx_1', 'cat_inc_1', 'pm_2', 'income', 8500000.00, CURDATE() - INTERVAL 28 DAY, 'Gaji Bulanan Utama', NOW(), NOW()),
-('tx_2', 'cat_exp_1', 'pm_3', 'expense', 45000.00, CURDATE() - INTERVAL 25 DAY, 'Makan siang Nasi Padang', NOW(), NOW()),
-('tx_3', 'cat_exp_2', 'pm_4', 'expense', 150000.00, CURDATE() - INTERVAL 20 DAY, 'Topup saldo e-toll & ojek online', NOW(), NOW()),
-('tx_4', 'cat_exp_4', 'pm_2', 'expense', 350000.00, CURDATE() - INTERVAL 15 DAY, 'Tagihan Listrik & WiFi', NOW(), NOW()),
-('tx_5', 'cat_inc_3', 'pm_2', 'income', 1200000.00, CURDATE() - INTERVAL 10 DAY, 'Project Web Design Freelance', NOW(), NOW()),
-('tx_6', 'cat_exp_3', 'pm_5', 'expense', 250000.00, CURDATE() - INTERVAL 2 DAY, 'Belanja Bulanan Minimarket', NOW(), NOW());
+INSERT INTO `transactions` (`id`, `user_id`, `category_id`, `payment_method_id`, `transaction_type`, `amount`, `transaction_date`, `notes`, `created_at`, `updated_at`) VALUES
+('tx_1', 'usr_1', 'cat_inc_1', 'pm_2', 'income', 8500000.00, CURDATE() - INTERVAL 28 DAY, 'Gaji Bulanan Utama', NOW(), NOW()),
+('tx_2', 'usr_1', 'cat_exp_1', 'pm_3', 'expense', 45000.00, CURDATE() - INTERVAL 25 DAY, 'Makan siang Nasi Padang', NOW(), NOW()),
+('tx_3', 'usr_1', 'cat_exp_2', 'pm_4', 'expense', 150000.00, CURDATE() - INTERVAL 20 DAY, 'Topup saldo e-toll & ojek online', NOW(), NOW()),
+('tx_4', 'usr_1', 'cat_exp_4', 'pm_2', 'expense', 350000.00, CURDATE() - INTERVAL 15 DAY, 'Tagihan Listrik & WiFi', NOW(), NOW()),
+('tx_5', 'usr_1', 'cat_inc_3', 'pm_2', 'income', 1200000.00, CURDATE() - INTERVAL 10 DAY, 'Project Web Design Freelance', NOW(), NOW()),
+('tx_6', 'usr_1', 'cat_exp_3', 'pm_5', 'expense', 250000.00, CURDATE() - INTERVAL 2 DAY, 'Belanja Bulanan Minimarket', NOW(), NOW());

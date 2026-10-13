@@ -10,6 +10,7 @@ import { CategoriesView } from './components/CategoriesView';
 import { ReportsView } from './components/ReportsView';
 import { LoginPage } from './components/LoginPage';
 import { TransactionFormModal } from './components/TransactionFormModal';
+import { McpKeysModal } from './components/McpKeysModal';
 import { getCurrentMonthKey, getMonthRange } from './utils';
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
 
   // Modal State
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
+  const [isMcpModalOpen, setIsMcpModalOpen] = useState<boolean>(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   // Fetch initial auth user
@@ -177,6 +179,7 @@ export default function App() {
         onChangeTab={setActiveTab}
         onOpenAddTransaction={handleOpenAddTransaction}
         user={user}
+        onOpenMcpKeys={() => setIsMcpModalOpen(true)}
         onLogout={handleLogout}
       />
       <div className="lg:pl-64 xl:pl-72">
@@ -249,6 +252,9 @@ export default function App() {
           categories={categories}
           paymentMethods={paymentMethods}
         />
+
+        {/* MCP Access Keys */}
+        <McpKeysModal isOpen={isMcpModalOpen} onClose={() => setIsMcpModalOpen(false)} />
       </div>
       </div>
     </div>

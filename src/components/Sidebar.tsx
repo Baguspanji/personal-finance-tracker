@@ -7,6 +7,7 @@ import {
   Plus,
   Wallet,
   LogOut,
+  KeyRound,
   type LucideIcon,
 } from 'lucide-react';
 import { TabType } from './BottomNav';
@@ -17,6 +18,7 @@ interface SidebarProps {
   onChangeTab: (tab: TabType) => void;
   onOpenAddTransaction: () => void;
   user: User | null;
+  onOpenMcpKeys: () => void;
   onLogout: () => void;
 }
 
@@ -32,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onChangeTab,
   onOpenAddTransaction,
   user,
+  onOpenMcpKeys,
   onLogout,
 }) => {
   return (
@@ -111,6 +114,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
           </div>
         )}
+        <button
+          onClick={onOpenMcpKeys}
+          className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+        >
+          <KeyRound className="w-4 h-4" /> Kunci MCP
+        </button>
+
         <button
           onClick={onLogout}
           className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"

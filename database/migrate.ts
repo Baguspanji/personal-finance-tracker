@@ -3,6 +3,13 @@ import path from 'path';
 import mysql from 'mysql2/promise';
 import { dbConfig } from './config';
 
+// ⚠️ BAHAYA — perintah ini MENGHAPUS SELURUH DATA personal_finance.
+// connection di bawah tidak memilih database, dan schema.sql men-hardcode
+// `USE personal_finance`, jadi MYSQL_DATABASE dari environment TIDAK
+// mengarahkan ke database lain. Menjalankannya untuk "uji coba" tetap
+// menghapus database asli.
+// Kalau butuh migrasi aditif: db:mcp-keys (mcp_keys) atau db:user-scope.
+
 async function runMigrationAndSeeder() {
   console.log('🚀 Starting MySQL Database Migration & Seeding...');
   console.log(`Connecting to ${dbConfig.host}:${dbConfig.port} as ${dbConfig.user}...`);

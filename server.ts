@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import { createServer as createViteServer } from 'vite';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { createFinanceMcpServer } from './mcp/tools';
 import * as mysqlDb from './server/mysql-db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'finance_tracker_jwt_secret_2026';
@@ -12,7 +14,9 @@ interface AuthRequest extends Request {
   userId?: string;
 }
 
-function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
+const MCP_KEY_PREFIX = 'mcp_';
+
+async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   let token = '';
 
@@ -24,6 +28,18 @@ function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
 
   if (!token) {
     res.status(401).json({ error: 'Akses tidak diizinkan. Silakan login terlebih dahulu.' });
+    return;
+  }
+
+  // Long-lived MCP keys are prefixed so they never collide with a JWT.
+  if (token.startsWith(MCP_KEY_PREFIX)) {
+    const resolved = await mysqlDb.resolveMcpKey(token);
+    if (!resolved) {
+      res.status(401).json({ error: 'Kunci MCP tidak valid atau sudah dicabut.' });
+      return;
+    }
+    req.userId = resolved.userId;
+    next();
     return;
   }
 
@@ -95,6 +111,39 @@ async function startServer() {
     res.json({ message: 'Berhasil logout' });
   });
 
+  // --- MCP Access Keys ---
+  // Plaintext is returned exactly once, at creation. Only its sha256 is stored.
+  app.post('/api/mcp-keys', requireAuth, async (req: AuthRequest, res: Response) => {
+    const { name } = req.body || {};
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ error: 'Nama kunci tidak boleh kosong.' });
+      return;
+    }
+    if (name.length > 100) {
+      res.status(400).json({ error: 'Nama kunci maksimal 100 karakter.' });
+      return;
+    }
+    const { key, plaintext } = await mysqlDb.createMcpKey(req.userId!, name);
+    const { key_hash, ...safe } = key;
+    res.status(201).json({ ...safe, plaintext });
+  });
+
+  app.get('/api/mcp-keys', requireAuth, async (req: AuthRequest, res: Response) => {
+    const keys = await mysqlDb.listMcpKeys(req.userId!);
+    res.json(
+      keys.map(({ key_hash, ...safe }) => safe)
+    );
+  });
+
+  app.delete('/api/mcp-keys/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+    const revoked = await mysqlDb.revokeMcpKey(req.params.id, req.userId!);
+    if (!revoked) {
+      res.status(404).json({ error: 'Kunci tidak ditemukan atau sudah dicabut.' });
+      return;
+    }
+    res.json({ success: true });
+  });
+
   app.get('/api/me', requireAuth, async (req: AuthRequest, res: Response) => {
     if (!req.userId) {
       res.status(401).json({ error: 'Pengguna tidak terautentikasi' });
@@ -116,7 +165,7 @@ async function startServer() {
 
   // --- Dashboard Endpoint ---
   app.get('/api/dashboard', requireAuth, async (req: AuthRequest, res: Response) => {
-    const summary = await mysqlDb.getDashboardSummary();
+    const summary = await mysqlDb.getDashboardSummary(req.userId!);
     res.json(summary);
   });
 
@@ -128,7 +177,7 @@ async function startServer() {
       return;
     }
     try {
-      const result = await mysqlDb.createOpeningTransaction(sourceMonth);
+      const result = await mysqlDb.createOpeningTransaction(req.userId!, sourceMonth);
       res.status(201).json({ success: true, ...result });
     } catch (err) {
       console.error('Failed creating opening transaction:', err);
@@ -193,7 +242,7 @@ async function startServer() {
 
   // --- Budget Endpoints (monthly limit per expense category) ---
   app.get('/api/budgets', requireAuth, async (req: AuthRequest, res: Response) => {
-    const budgets = await mysqlDb.getBudgets();
+    const budgets = await mysqlDb.getBudgets(req.userId!);
     res.json(budgets);
   });
 
@@ -207,7 +256,7 @@ async function startServer() {
     }
 
     try {
-      const saved = await mysqlDb.setBudget(categoryId, numAmount);
+      const saved = await mysqlDb.setBudget(req.userId!, categoryId, numAmount);
       res.json(saved);
     } catch (err) {
       res.status(400).json({ error: (err as Error).message || 'Gagal menyimpan budget.' });
@@ -216,7 +265,7 @@ async function startServer() {
 
   app.delete('/api/budgets/:categoryId', requireAuth, async (req: AuthRequest, res: Response) => {
     const { categoryId } = req.params;
-    const success = await mysqlDb.deleteBudget(categoryId);
+    const success = await mysqlDb.deleteBudget(req.userId!, categoryId);
 
     if (!success) {
       res.status(404).json({ error: 'Budget tidak ditemukan.' });
@@ -295,13 +344,13 @@ async function startServer() {
       return;
     }
 
-    const transactions = await mysqlDb.getTransactions(startDate, endDate);
+    const transactions = await mysqlDb.getTransactions(req.userId!, startDate, endDate);
     res.json(transactions);
   });
 
   app.get('/api/transactions/:id', requireAuth, async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
-    const tx = await mysqlDb.getTransactionById(id);
+    const tx = await mysqlDb.getTransactionById(req.userId!, id);
     if (!tx) {
       res.status(404).json({ error: 'Transaksi tidak ditemukan.' });
       return;
@@ -343,7 +392,7 @@ async function startServer() {
       finalPaymentMethodId = tunaiPm ? tunaiPm.id : pmList[0]?.id || 'pm_1';
     }
 
-    const newTx = await mysqlDb.createTransaction({
+    const newTx = await mysqlDb.createTransaction(req.userId!, {
       category_id,
       payment_method_id: finalPaymentMethodId,
       transaction_type,
@@ -367,7 +416,7 @@ async function startServer() {
       }
     }
 
-    const updated = await mysqlDb.updateTransaction(id, {
+    const updated = await mysqlDb.updateTransaction(req.userId!, id, {
       category_id,
       payment_method_id,
       transaction_type,
@@ -386,7 +435,7 @@ async function startServer() {
 
   app.delete('/api/transactions/:id', requireAuth, async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
-    const success = await mysqlDb.deleteTransaction(id);
+    const success = await mysqlDb.deleteTransaction(req.userId!, id);
 
     if (!success) {
       res.status(404).json({ error: 'Transaksi tidak ditemukan.' });
@@ -394,6 +443,46 @@ async function startServer() {
     }
 
     res.json({ success: true, message: 'Transaksi berhasil dihapus.' });
+  });
+
+  // --- MCP over HTTP (Streamable HTTP) ---
+  // Berjalan berdampingan dengan web di proses yang sama. Auth pakai header
+  // Authorization yang sama seperti /api/*: JWT biasa atau kunci `mcp_...`.
+  //
+  // Satu server MCP per request (stateless) supaya tidak ada state yang bisa
+  // bocor antar user.
+  app.all('/mcp', requireAuth, async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Endpoint MCP hanya menerima header Authorization: Bearer <token>.' });
+      return;
+    }
+
+    const server = createFinanceMcpServer({
+      // 127.0.0.1 bukan localhost: server listen di 0.0.0.0 (IPv4), sedangkan
+      // localhost bisa di-resolve ke ::1 dan gagal connect.
+      baseUrl: `http://127.0.0.1:${PORT}`,
+      authorization: authHeader,
+    });
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+
+    res.on('close', () => {
+      void transport.close();
+      void server.close();
+    });
+
+    try {
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+    } catch (err) {
+      console.error('MCP transport error:', (err as Error).message);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Gagal menangani request MCP.' });
+      }
+    }
   });
 
   // --- Vite & Static Asset Handling ---

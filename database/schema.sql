@@ -50,21 +50,28 @@ CREATE TABLE `categories` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
--- Table: budgets (monthly spending limit per expense category)
+-- Table: budgets (monthly spending limit per expense category, per user)
 -- -----------------------------------------------------------------------------
 CREATE TABLE `budgets` (
   `id` VARCHAR(50) NOT NULL,
+  `user_id` VARCHAR(50) NOT NULL,
   `category_id` VARCHAR(50) NOT NULL,
   `amount` DECIMAL(15, 2) NOT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_budgets_category` (`category_id`),
+  UNIQUE KEY `uq_budgets_user_category` (`user_id`, `category_id`),
   CONSTRAINT `fk_budgets_category`
     FOREIGN KEY (`category_id`)
     REFERENCES `categories` (`id`)
     ON DELETE CASCADE
-    ON UPDATE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_budgets_user`
+    FOREIGN KEY (`user_id`)
+    REFERENCES `users` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  INDEX `idx_budgets_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
@@ -72,6 +79,7 @@ CREATE TABLE `budgets` (
 -- -----------------------------------------------------------------------------
 CREATE TABLE `transactions` (
   `id` VARCHAR(50) NOT NULL,
+  `user_id` VARCHAR(50) NOT NULL,
   `category_id` VARCHAR(50) NOT NULL,
   `payment_method_id` VARCHAR(50) NOT NULL,
   `transaction_type` ENUM('income', 'expense') NOT NULL,
@@ -92,7 +100,13 @@ CREATE TABLE `transactions` (
     REFERENCES `payment_methods` (`id`)
     ON DELETE RESTRICT
     ON UPDATE CASCADE,
-  INDEX `idx_transactions_date` (`transaction_date`),
+  CONSTRAINT `fk_transactions_user`
+    FOREIGN KEY (`user_id`)
+    REFERENCES `users` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  INDEX `idx_transactions_user` (`user_id`),
+  INDEX `idx_transactions_user_date` (`user_id`, `transaction_date`),
   INDEX `idx_transactions_type` (`transaction_type`),
   INDEX `idx_transactions_category` (`category_id`),
   INDEX `idx_transactions_payment_method` (`payment_method_id`)
