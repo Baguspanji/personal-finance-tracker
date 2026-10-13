@@ -11,11 +11,14 @@ import {
   Edit2,
 } from 'lucide-react';
 import { Transaction } from '../types';
-import { formatIDR, formatDateIndonesian } from '../utils';
+import { formatIDR, formatDateIndonesian, getMonthRange } from '../utils';
+import { MonthField } from './DateFields';
 
 interface TransactionsViewProps {
   transactions: Transaction[];
   loading: boolean;
+  month: string;
+  onMonthChange: (month: string) => void;
   onEditTransaction: (tx: Transaction) => void;
   onDeleteTransaction: (tx: Transaction) => void;
   onOpenAddTransaction: () => void;
@@ -24,12 +27,15 @@ interface TransactionsViewProps {
 export const TransactionsView: React.FC<TransactionsViewProps> = ({
   transactions,
   loading,
+  month,
+  onMonthChange,
   onEditTransaction,
   onDeleteTransaction,
   onOpenAddTransaction,
 }) => {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const range = month ? getMonthRange(month) : null;
 
   const filtered = transactions.filter((tx) => {
     // Filter by type
@@ -112,9 +118,29 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             <TrendingDown className="w-3.5 h-3.5" /> Pengeluaran
           </button>
         </div>
-      </div>
 
-      {/* Transaction List */}
+        {/* Filter Bulan */}
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+          <div className="w-32 shrink-0">
+            <MonthField value={month} onChange={onMonthChange} placeholder="Semua bulan" />
+          </div>
+          {month && (
+            <button
+              onClick={() => onMonthChange('')}
+              className="ml-auto shrink-0 px-2.5 py-1.5 text-[10px] font-semibold text-slate-500 hover:text-rose-600 bg-white border border-slate-200 rounded-xl transition-colors"
+            >
+              Semua bulan
+            </button>
+          )}
+        </div>
+
+        {range && (
+          <p className="text-[10px] text-slate-400 text-center">
+            {formatDateIndonesian(range.startDate)} - {formatDateIndonesian(range.endDate)}
+          </p>
+        )}
+      </div>
       {loading && transactions.length === 0 ? (
         <div className="space-y-3 py-4 animate-pulse">
           <div className="h-16 bg-slate-200 rounded-2xl" />
@@ -126,7 +152,11 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
           <Filter className="w-10 h-10 mx-auto text-slate-300 stroke-1" />
           <p className="text-sm font-semibold text-slate-700">Tidak ada transaksi ditemukan</p>
           <p className="text-xs text-slate-400">
-            {search ? 'Coba gunakan kata kunci pencarian lain' : 'Belum ada data untuk kategori ini'}
+            {search
+              ? 'Coba gunakan kata kunci pencarian lain'
+              : range
+                ? `Tidak ada transaksi pada ${formatDateIndonesian(range.startDate)} - ${formatDateIndonesian(range.endDate)}`
+                : 'Belum ada data untuk kategori ini'}
           </p>
         </div>
       ) : (

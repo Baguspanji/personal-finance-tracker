@@ -387,9 +387,23 @@ export interface TransactionWithDetails extends DBTransaction {
   payment_method_name: string;
 }
 
-export async function getTransactions(): Promise<TransactionWithDetails[]> {
+export async function getTransactions(
+  startDate?: string,
+  endDate?: string
+): Promise<TransactionWithDetails[]> {
   try {
     const p = getPool();
+    // Date-only column, so YYYY-MM-DD string bounds compare directly.
+    const conditions: string[] = [];
+    const params: string[] = [];
+    if (startDate) {
+      conditions.push('t.transaction_date >= ?');
+      params.push(startDate);
+    }
+    if (endDate) {
+      conditions.push('t.transaction_date <= ?');
+      params.push(endDate);
+    }
     const [rows] = await p.execute<mysql.RowDataPacket[]>(`
       SELECT
         t.id,
@@ -407,8 +421,9 @@ export async function getTransactions(): Promise<TransactionWithDetails[]> {
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN payment_methods pm ON t.payment_method_id = pm.id
+      ${conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''}
       ORDER BY t.transaction_date DESC, t.created_at DESC
-    `);
+    `, params);
 
     return rows.map((r) => ({
       id: r.id,
@@ -426,7 +441,10 @@ export async function getTransactions(): Promise<TransactionWithDetails[]> {
     }));
   } catch (err) {
     console.warn('MySQL getTransactions error, falling back to JSON DB:', (err as Error).message);
-    const raw = jsonDb.getTransactions();
+    // ponytail: JSON fallback filters in memory — fine for the seed-size dataset, move to SQL when it isn't.
+    const raw = jsonDb.getTransactions().filter(
+      (t) => (!startDate || t.transaction_date >= startDate) && (!endDate || t.transaction_date <= endDate)
+    );
     const categoriesMap = new Map(jsonDb.getCategories().map((c) => [c.id, c.name]));
     const pmMap = new Map(jsonDb.getPaymentMethods().map((pm) => [pm.id, pm.name]));
     return raw.map((t) => ({

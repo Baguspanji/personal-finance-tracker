@@ -154,8 +154,13 @@ export const api = {
   },
 
   // Transactions
-  getTransactions: async (): Promise<Transaction[]> => {
-    return fetchApi<Transaction[]>('/api/transactions');
+  // Omitting both bounds returns the full history — used by Dashboard/Reports.
+  getTransactions: async (params?: { startDate?: string; endDate?: string }): Promise<Transaction[]> => {
+    const query = new URLSearchParams();
+    if (params?.startDate) query.set('startDate', params.startDate);
+    if (params?.endDate) query.set('endDate', params.endDate);
+    const qs = query.toString();
+    return fetchApi<Transaction[]>(`/api/transactions${qs ? `?${qs}` : ''}`);
   },
 
   getTransactionById: async (id: string): Promise<Transaction> => {

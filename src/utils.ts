@@ -78,6 +78,15 @@ export function getCurrentMonthKey(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+/** Expand a YYYY-MM key into the inclusive start/end date range of that month. */
+export function getMonthRange(monthKey: string): { startDate: string; endDate: string } {
+  const [year, month] = monthKey.split('-').map(Number);
+  return {
+    startDate: formatDateKey(new Date(year, month - 1, 1)),
+    endDate: formatDateKey(new Date(year, month, 0)),
+  };
+}
+
 export interface MonthlyFlow {
   key: string; // YYYY-MM
   label: string; // short month label, e.g. "Jan"

@@ -10,6 +10,7 @@ import { CategoriesView } from './components/CategoriesView';
 import { ReportsView } from './components/ReportsView';
 import { LoginPage } from './components/LoginPage';
 import { TransactionFormModal } from './components/TransactionFormModal';
+import { getCurrentMonthKey, getMonthRange } from './utils';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -25,6 +26,12 @@ export default function App() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(false);
+
+  // Transactions tab filter — empty string = semua bulan.
+  // Fetched separately from `transactions` so Dashboard/Reports keep the full history.
+  const [txMonth, setTxMonth] = useState<string>(getCurrentMonthKey());
+  const [txList, setTxList] = useState<Transaction[]>([]);
+  const [txListLoading, setTxListLoading] = useState<boolean>(false);
 
   // Modal State
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
@@ -82,6 +89,30 @@ export default function App() {
     }
   }, [user, loadAppData]);
 
+  // Fetch the Transactions tab page — server applies the month's start/end date.
+  const loadTxList = useCallback(async () => {
+    if (!user) return;
+    setTxListLoading(true);
+    try {
+      const range = txMonth ? getMonthRange(txMonth) : undefined;
+      setTxList(await api.getTransactions(range));
+    } catch (err) {
+      console.error('Failed loading transaction list:', err);
+    } finally {
+      setTxListLoading(false);
+    }
+  }, [user, txMonth]);
+
+  useEffect(() => {
+    if (user) {
+      loadTxList();
+    }
+  }, [user, txMonth, loadTxList]);
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([loadAppData(), loadTxList()]);
+  }, [loadAppData, loadTxList]);
+
   // Handlers
   const handleLoginSuccess = (loggedInUser: User) => {
     setUser(loggedInUser);
@@ -116,12 +147,12 @@ export default function App() {
     } else {
       await api.createTransaction(data);
     }
-    await loadAppData();
+    await refreshAll();
   };
 
   const handleDeleteTransaction = async (id: string) => {
     await api.deleteTransaction(id);
-    await loadAppData();
+    await refreshAll();
   };
 
   if (authChecking) {
@@ -171,8 +202,10 @@ export default function App() {
 
           {activeTab === 'transactions' && (
             <TransactionsView
-              transactions={transactions}
-              loading={dataLoading}
+              transactions={txList}
+              loading={dataLoading || txListLoading}
+              month={txMonth}
+              onMonthChange={setTxMonth}
               onEditTransaction={handleOpenEditTransaction}
               onDeleteTransaction={(tx) => {
                 setEditingTransaction(tx);

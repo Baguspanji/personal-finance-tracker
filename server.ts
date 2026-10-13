@@ -286,7 +286,16 @@ async function startServer() {
 
   // --- Transaction Endpoints ---
   app.get('/api/transactions', requireAuth, async (req: AuthRequest, res: Response) => {
-    const transactions = await mysqlDb.getTransactions();
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    const startDate = req.query.startDate ? String(req.query.startDate) : undefined;
+    const endDate = req.query.endDate ? String(req.query.endDate) : undefined;
+
+    if ((startDate && !datePattern.test(startDate)) || (endDate && !datePattern.test(endDate))) {
+      res.status(400).json({ error: 'Filter tanggal harus berformat YYYY-MM-DD.' });
+      return;
+    }
+
+    const transactions = await mysqlDb.getTransactions(startDate, endDate);
     res.json(transactions);
   });
 
